@@ -22,31 +22,35 @@
   #
   #-----
 
-import sys, os, argparse
+import sys, os, argparse, base64
 
-def cSharpToNimByteArray(inFilename):
+def cSharpToEncodedBin(inFilename):
     # Construct the Nim bytearray in the right format
     # Example: var buf: array[8, byte] = [byte 0x4D,0x5A,0x90,0x00,0x03,0x00,0x00,0x00]
-    outFilename = inFilename + ".nimByteArray"
+    # outFilename = inFilename + ".nimByteArray"
 
-    if os.path.exists(outFilename):
-        print(f"File '{outFilename}' already exists, using bytearray from this file...")
-        with open(outFilename,'r') as outFile:
-            return outFile.read()
+    # if os.path.exists(outFilename):
+    #     print(f"File '{outFilename}' already exists, using bytearray from this file...")
+    #     with open(outFilename,'r') as outFile:
+    #         return outFile.read()
 
     if not os.path.exists(inFilename):
         raise SystemExit("ERROR: Input file is not valid.")
 
-    print("Constructing Nim byte array from file (this may take a while)...")
+    print("Encoding binary to embed...")
     with open(inFilename,'rb') as inFile:
         blob_data = bytearray(inFile.read())
-        result = f"let buf: array[{len(blob_data)}, byte] = [byte "
-        result = result + ",".join ([f"{x:#0{4}x}" for x in blob_data])
-        result = result + "]"
 
-        with open(outFilename, 'w') as outFile:
-            outFile.write(result)
-            print(f"Wrote Nim bytestring to '{outFilename}'.")
+        ### DEPRECATED - Below code embeds the plaintext bytestring which can be fingerprinted
+        #result = f"let buf: array[{len(blob_data)}, byte] = [byte "
+        #result = result + ",".join ([f"{x:#0{4}x}" for x in blob_data])
+        #result = result + "]"
+        #
+        #with open(outFilename, 'w') as outFile:
+        #    outFile.write(result)
+        #    print(f"Wrote Nim bytestring to '{outFilename}'.")
+
+        result = f"let b64buf = \"{str(base64.b64encode(blob_data), 'utf-8')}\""
 
     return result
 
@@ -74,7 +78,7 @@ def generateNimSource(fileName, byteString, argString, disableAmsi, disableEtw, 
             new_line = new_line.replace('#[ PLACEHOLDERVERBOSE ]#', f"let verbose = {str(verbose).lower()}")
             new_line = new_line.replace('#[ PLACEHOLDERPATCHAMSI ]#', f"let optionPatchAmsi = {str(disableAmsi).lower()}")
             new_line = new_line.replace('#[ PLACEHOLDERDISABLEETW ]#', f"let optionDisableEtw = {str(disableEtw).lower()}")
-            new_line = new_line.replace('#[ PLACEHOLDERBYTEARRAY ]#', byteString)
+            new_line = new_line.replace('#[ PLACEHOLDERBENCBIN ]#', byteString)
             new_line = new_line.replace('#[ PLACEHOLDERARGUMENTS ]#', argString)
             result += new_line +"\n"
 
@@ -109,11 +113,11 @@ def compileNim(fileName, hideApp, x64):
         if os.name == 'nt':
             # Windows
             print("Compiling Nim binary (this may take a while)...")
-            os.system(f"nim c -d:danger -d:strip -d:release --hints:off --opt:size --passc=-flto --passl=-flto --app:{gui} --cpu={cpu} {fileName}")
+            os.system(f"nim c -d:danger -d:strip -d:release --hints:off --opt:size --passc=-flto --passl=-flto --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu} {fileName}")
         else:
             # Other (Unix)
             print("Cross-compiling Nim binary for Windows (this may take a while)...")
-            os.system(f"nim c -d=mingw -d:danger -d:strip -d:release --hints:off --opt:size --app:{gui} --cpu={cpu} {fileName}")
+            os.system(f"nim c -d=mingw -d:danger -d:strip -d:release --hints:off --opt:size --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu} {fileName}")
     except:
         e = sys.exc_info()[0]
         print(f"There was an error compiling the binary: {e}")
@@ -139,10 +143,10 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    byteArray = cSharpToNimByteArray(args.inputfile)
+    encodedBin = cSharpToEncodedBin(args.inputfile)
 
     argString = parseArguments(args.arguments)
 
-    sourceFile = generateNimSource(args.inputfile, byteArray, argString, args.patchAmsi, args.disableEtw, args.verbose)
+    sourceFile = generateNimSource(args.inputfile, encodedBin, argString, args.patchAmsi, args.disableEtw, args.verbose)
 
     compileNim(sourceFile, args.hideApp, args.x64)

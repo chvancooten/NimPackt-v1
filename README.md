@@ -6,15 +6,16 @@
 
 NimPackt is a Nim-based packer for C# / .NET executables. It automatically wraps these executables (along with its arguments) in a Nim binary that is compiled to Native C and as such harder to detect or reverse engineer. Currently, it has the following features.
 
-- Cross-platform compilation (from both Linux and Windows)
 - Patching the Anti-Malware Scan Interface (AMSI)
 - Disabling Event Tracing for Windows (ETW)
-- Obfuscating static strings used in the binary
+- Payload encoding to prevent static analysis
+- ~~Obfuscating static strings used in the binary~~ (temporarily disabled, does not support embedded payload string)
+- Cross-platform compilation (from both Linux and Windows)
 - Supports both x64/x86 compilation (make sure to grab the right architecture for the ingested binary)
 
 A great source for C#-based binaries for offensive tooling can be found [here](https://github.com/Flangvik/SharpCollection). It is highly recommended to compile the C# binaries yourself. You should replace strings for, as well as obfuscate, sensitive binaries (like Mimikatz) to avoid fingerprinting.
 
-If you want to go all-out on OpSec, you could re-pack the Nim binary using a tool like [PEzor](https://github.com/phra/PEzor) to remove userland hooks (until Project5 is supported) or encode the binary until execution.
+If you want to go all-out on OpSec, you could re-pack the Nim binary using a tool like [PEzor](https://github.com/phra/PEzor) to remove userland hooks (until Project5 is supported) or even launch it from memory using CobaltStrike, though this is a bit beyond the purpose of NimPackt 😙
 
 ## Installation
 
@@ -22,19 +23,19 @@ On **Linux**, simply install the required packages and use the Nimble package in
 
 ```
 sudo apt install -y python3 mingw-w64 nim
-nimble install winim strenc
+nimble install winim strenc base64
 ```
 
 On **Windows**, execute the Nim installer from [here](https://nim-lang.org/install_windows.html). Make sure to install `mingw` and set the path values correctly using the provided `finish.exe` utility, then install the required packages as follows.
 
 ```
-nimble install winim strenc
+nimble install winim strenc base64
 ```
 
 ## Usage
 
 ```
-usage: NimPackt.py [-h] -i INPUTFILE [-a ARGUMENTS] [-86] [-H] [-na] [-ne] [-v] [-V]
+usage: NimPackt.py [-h] -i INPUTFILE [-a ARGUMENTS] [-32] [-H] [-na] [-ne] [-v] [-V]
 
 required arguments:
   -i INPUTFILE, --inputfile INPUTFILE
@@ -64,11 +65,11 @@ python3 NimPackt.py -H -i /tmp/SharpChisel.exe -a 'client --auth nimpackt.demo_A
 
 ## Known issues
 
-- The `-H` flag doesn't seem to properly hide the output of the executed bytes. Need to investigate this further.
-- For large input binaries (over 10-15MB), the compiler seems to fail with the "out of memory" error sometimes due to the source code containing a ~80Mb byte string. Will look into this further in terms of compilation settings or string splitting, workaround for now is to optimize the C#-compiled binary for size (e.g. SharpChisel contains two 8Mb dll files, remove the one for the architecture you don't need before compiling).
+- The `-H` flag doesn't seem to properly hide the output of the executed bytes (the executed assembly). This probably relates to C# compiling options, need to investigate this further.
+- Static XOR encryption of strings using `nim-strenc` does not support the huge payload string and crashes during compilation. Need to research a solution (chunking?) or alternatives.
 
 ## Wishlist
 
-- Encode embedded byte string before compilation, decode during runtime to prevent static analysis
+- Replace encoding with encryption
 - Provide option to deploy `Project5` to unhook API calls before execution
 - Provide option to pack as dll library

