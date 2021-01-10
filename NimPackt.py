@@ -50,7 +50,7 @@ def cSharpToEncodedBin(inFilename):
         #    outFile.write(result)
         #    print(f"Wrote Nim bytestring to '{outFilename}'.")
 
-        result = f"let b64buf = \"{str(base64.b64encode(blob_data), 'utf-8')}\""
+        result = f"let b64buf : noCryptString = \"{str(base64.b64encode(blob_data), 'utf-8')}\""
 
     return result
 
@@ -117,7 +117,7 @@ def compileNim(fileName, hideApp, x64):
         else:
             # Other (Unix)
             print("Cross-compiling Nim binary for Windows (this may take a while)...")
-            os.system(f"nim c -d=mingw -d:danger -d:strip -d:release --hints:off --opt:size --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu} {fileName}")
+            os.system(f"nim c -d=mingw -d:danger -d:strip -d:release --hints:off --opt:size --passc=-flto --passl=-flto --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu} {fileName}")
     except:
         e = sys.exc_info()[0]
         print(f"There was an error compiling the binary: {e}")
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     optional.add_argument('-na', '--nopatchamsi', action='store_false', default=True, dest='patchAmsi', help='Do NOT patch (disable) the Anti-Malware Scan Interface (AMSI)')
     optional.add_argument('-ne', '--nodisableetw', action='store_false', default=True, dest='disableEtw', help='Do NOT disable Event Tracing for Windows (ETW)')
     optional.add_argument('-v', '--verbose', action='store_true', default=False, dest='verbose', help='Print debug messages of the wrapped binary at runtime')
-    optional.add_argument('-V', '--version', action='version', version='%(prog)s 0.6 Beta')
+    optional.add_argument('-V', '--version', action='version', version='%(prog)s 0.8 Beta')
 
     args = parser.parse_args()
 
