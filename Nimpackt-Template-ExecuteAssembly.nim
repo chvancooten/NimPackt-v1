@@ -23,6 +23,7 @@ import strformat
 import os
 import dynlib
 import strenc
+import base64
 
 # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: const cryptKey: array[16, byte] = [byte 0x50,0x61,0x4e, ...]
 #[ PLACEHOLDERCRYPTKEY ]#
@@ -101,9 +102,8 @@ when isMainModule:
 
     #[
         BELOW LINES WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE:
-        let 
-            cryptedInput: array[11, byte] = [byte 0x50,0x9d,0xaa,0xd5,0xdb,0xfc,0xc1,0x53,0xac,0xe2,0x27]
-            cryptIV: array[16, byte] = [byte 0x11,0x65,0xde,0x9f,0xfe,0xc9,0x15,0x33,0x6e,0x0a,0x8a,0x2e,0x4a,0x2d,0xff,0xb7]
+        let b64buf : noCryptString = "ZXhhbXBsZQo="
+        let cryptIV: array[16, byte] = [byte 0x11,0x65,0xde,0x9f,0xfe,0xc9,0x15,0x33,0x6e,0x0a,0x8a,0x2e,0x4a,0x2d,0xff,0xb7]
 
         (key is defined separately as a const to prevent the values from being too close together)
     ]#
@@ -114,6 +114,8 @@ when isMainModule:
     func toByteSeq*(str: string): seq[byte] {.inline.} =
         @(str.toOpenArrayByte(0, str.high))
 
+    let cryptedInput = toByteSeq(decode(b64buf))
+
     var
         dctx: CTR[aes128]
         key : array[aes128.sizeKey, byte]
@@ -123,8 +125,7 @@ when isMainModule:
 
     key = cryptKey
     iv = cryptIV
-
-    copyMem(unsafeAddr enctext[0], unsafeAddr cryptedInput[0], len(cryptedInput))
+    enctext = cryptedInput
 
     dctx.init(key, iv)
     dctx.decrypt(enctext, dectext)

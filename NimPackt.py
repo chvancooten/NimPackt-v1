@@ -26,6 +26,7 @@ import sys
 import argparse
 import binascii
 import os
+import base64
 from Crypto.Cipher import AES
 from Crypto.Util import Counter
 
@@ -81,9 +82,10 @@ def aesEncryptInputFile(inFilename):
         key =  b"S3curity=numbah1" # AES-128, so 16 bytes
         ciphertext = encrypt_message(key, plaintext)
 
-        cryptedInput = f"let cryptedInput: array[{len(ciphertext[16:])}, byte] = [byte "
-        cryptedInput = cryptedInput + ",".join ([f"{x:#0{4}x}" for x in ciphertext[16:]])
-        cryptedInput = cryptedInput + "]"
+        # cryptedInput = f"let cryptedInput: seq[byte] = @[byte "
+        # cryptedInput = cryptedInput + ",".join ([f"{x:#0{4}x}" for x in ciphertext[16:]])
+        # cryptedInput = cryptedInput + "]"
+        cryptedInput = f"let b64buf : noCryptString = \"{str(base64.b64encode(ciphertext[16:]), 'utf-8')}\""
 
         cryptIV = f"let cryptIV: array[{len(ciphertext[:16])}, byte] = [byte "
         cryptIV = cryptIV + ",".join ([f"{x:#0{4}x}" for x in ciphertext[:16]])
