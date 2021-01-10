@@ -113,32 +113,63 @@ def parseArguments(inArgs):
     return result
         
 def generateSource_ExecuteAssembly(fileName, cryptedInput, cryptIV, cryptKey, argString, disableAmsi, disableEtw, verbose):
-    # Construct the Nim source file based on the passed arguments 
-    with open('NimPackt-Template-ExecuteAssembly.nim','r') as templateFile:
-        result = ""
-        for line in templateFile:
-            new_line = line.rstrip()
-            new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
-            new_line = new_line.replace('#[ PLACEHOLDERVERBOSE ]#', f"let verbose = {str(verbose).lower()}")
-            new_line = new_line.replace('#[ PLACEHOLDERPATCHAMSI ]#', f"let optionPatchAmsi = {str(disableAmsi).lower()}")
-            new_line = new_line.replace('#[ PLACEHOLDERDISABLEETW ]#', f"let optionDisableEtw = {str(disableEtw).lower()}")
-            new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDINPUT ]#', cryptedInput)
-            new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
-            new_line = new_line.replace('#[ PLACEHOLDERARGUMENTS ]#', argString)
-            result += new_line +"\n"
+    # Construct the Nim source file based on the passed arguments, using the Execute-Assembly template 
+    filenames = ["NimPackt-Template-Base.nim", "NimPackt-Template-ExecuteAssembly.nim"]
+    result = ""
+    for fname in filenames:
+        with open(fname,'r') as templateFile:
+            for line in templateFile:
+                new_line = line.rstrip()
+                new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
+                new_line = new_line.replace('#[ PLACEHOLDERVERBOSE ]#', f"let verbose = {str(verbose).lower()}")
+                new_line = new_line.replace('#[ PLACEHOLDERPATCHAMSI ]#', f"let optionPatchAmsi = {str(disableAmsi).lower()}")
+                new_line = new_line.replace('#[ PLACEHOLDERDISABLEETW ]#', f"let optionDisableEtw = {str(disableEtw).lower()}")
+                new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDINPUT ]#', cryptedInput)
+                new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
+                new_line = new_line.replace('#[ PLACEHOLDERARGUMENTS ]#', argString)
+                result += new_line +"\n"
 
-        # Get output directory and name. Unfortunately nim does not allow hyphens or periods in the output file :/
-        outDir = "./output/"
-        outFilename = outDir + os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "ExecAssemblyNimPackt.nim"
+    # Get output directory and name. Unfortunately nim does not allow hyphens or periods in the output file :/
+    outDir = "./output/"
+    outFilename = outDir + os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "ExecAssemblyNimPackt.nim"
 
-        if not os.path.exists(outDir):
-            os.makedirs(outDir)
+    if not os.path.exists(outDir):
+        os.makedirs(outDir)
 
-        with open(outFilename, 'w') as outFile:
-            outFile.write(result)
-            print("Prepared Nim source file.")
+    with open(outFilename, 'w') as outFile:
+        outFile.write(result)
+        print("Prepared Nim source file.")
 
-        return outFilename
+    return outFilename
+
+def generateSource_Shinject(fileName, cryptedInput, cryptIV, cryptKey, argString, disableAmsi, disableEtw, verbose):
+    # Construct the Nim source file based on the passed arguments, using the Execute-Assembly template 
+    filenames = ["NimPackt-Template-Base.nim", "NimPackt-Template-Shinject.nim"]
+    result = ""
+    for fname in filenames:
+        with open(fname,'r') as templateFile:
+            for line in templateFile:
+                new_line = line.rstrip()
+                new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
+                new_line = new_line.replace('#[ PLACEHOLDERVERBOSE ]#', f"let verbose = {str(verbose).lower()}")
+                new_line = new_line.replace('#[ PLACEHOLDERPATCHAMSI ]#', f"let optionPatchAmsi = {str(disableAmsi).lower()}")
+                new_line = new_line.replace('#[ PLACEHOLDERDISABLEETW ]#', f"let optionDisableEtw = {str(disableEtw).lower()}")
+                new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDINPUT ]#', cryptedInput)
+                new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
+                result += new_line +"\n"
+
+    # Get output directory and name. Unfortunately nim does not allow hyphens or periods in the output file :/
+    outDir = "./output/"
+    outFilename = outDir + os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "ShinjectNimPackt.nim"
+
+    if not os.path.exists(outDir):
+        os.makedirs(outDir)
+
+    with open(outFilename, 'w') as outFile:
+        outFile.write(result)
+        print("Prepared Nim source file.")
+
+    return outFilename
 
 def compileNim(fileName, hideApp, x64):
     # Compile the generated Nim file for Windows (cross-compile if run from linux)
@@ -176,9 +207,9 @@ if __name__ == "__main__":
     required = parser.add_argument_group('required arguments')
     optional = parser.add_argument_group('optional arguments')
 
-    required.add_argument('-i', '--inputfile', action='store', dest='inputfile', help='C# .NET binary executable to wrap', required=True)
+    required.add_argument('-i', '--inputfile', action='store', dest='inputfile', help='C# .NET binary executable (.exe) or shellcode (.bin) to wrap', required=True)
     optional.add_argument('-a', '--arguments', action='store', dest='arguments', default="PASSTHRU", nargs="?", const="", help='Arguments to "bake into" the wrapped binary, or "PASSTHRU" to accept run-time arguments (default)')
-    optional.add_argument('-e', '--executionmode', action='store', dest='executionmode', default="execute-assembly", help='Execution mode of the packer. Supports "execute-assembly" (default), "shinject" (TODO), "shinject-remote" (TODO)')
+    optional.add_argument('-e', '--executionmode', action='store', dest='executionmode', default="execute-assembly", help='Execution mode of the packer. Supports "execute-assembly" (default), "shinject", "shinject-remote" (TODO)')
     optional.add_argument('-32', '--32bit', action='store_false', default=True, dest='x64', help='Compile in 32-bit mode')
     optional.add_argument('-H', '--hideapp', action='store_true', default=False, dest='hideApp', help='Hide the app frontend (console output) by compiling it in GUI mode')
     optional.add_argument('-na', '--nopatchamsi', action='store_false', default=True, dest='patchAmsi', help='Do NOT patch (disable) the Anti-Malware Scan Interface (AMSI)')
@@ -188,10 +219,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.executionmode not in ["execute-assembly", "shinject", "shinject-remote"]:
-        raise SystemExit("ERROR: Argument 'executionmode' is not valid. Please specify either of 'execute-assembly', 'shinject', or 'shinject-remote'.")
-
-    if args.executionmode in ["shinject", "shinject-remote"]:
+    if args.executionmode in ["shinject-remote"]:
         raise SystemExit("ERROR: Sorry, remote shellcode injection is not supported yet. Coming Soon™️")
 
     if args.executionmode in ["shinject", "shinject-remote"] and args.arguments not in ["", "PASSTHRU"]:
@@ -204,5 +232,10 @@ if __name__ == "__main__":
     if args.executionmode == "execute-assembly":
         sourceFile = generateSource_ExecuteAssembly(args.inputfile, cryptedInput, cryptIV, cryptKey,
             argString, args.patchAmsi, args.disableEtw, args.verbose)
+    elif args.executionmode == "shinject":
+        sourceFile = generateSource_Shinject(args.inputfile, cryptedInput, cryptIV, cryptKey,
+            argString, args.patchAmsi, args.disableEtw, args.verbose)
+    else:
+        raise SystemExit("ERROR: Argument 'executionmode' is not valid. Please specify either of 'execute-assembly', 'shinject', or 'shinject-remote'.")
 
     compileNim(sourceFile, args.hideApp, args.x64)
