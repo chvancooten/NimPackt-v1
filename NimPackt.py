@@ -69,7 +69,7 @@ def encrypt_message(key, plaintext):
     iv = os.urandom(16)
     ctr = Counter.new(128, initial_value=int_of_string(iv))
     aes = AES.new(key, AES.MODE_CTR, counter=ctr)
-    return iv + aes.encrypt(plaintext)
+    return iv + aes.encrypt(plaintext) # TODO: Fix *nix 'TypeError: argument must be read-only bytes-like object, not bytearray'
 
 def aesEncryptInputFile(inFilename):
     if not os.path.exists(inFilename):
@@ -79,14 +79,13 @@ def aesEncryptInputFile(inFilename):
     with open(inFilename,'rb') as inFile:
         blob_data = bytearray(inFile.read())
         plaintext = blob_data
-        key =  b"S3curity=numbah1" # AES-128, so 16 bytes
+        key =  os.urandom(16) # AES-128, so 16 bytes
         ciphertext = encrypt_message(key, plaintext)
 
-        # cryptedInput = f"let cryptedInput: seq[byte] = @[byte "
-        # cryptedInput = cryptedInput + ",".join ([f"{x:#0{4}x}" for x in ciphertext[16:]])
-        # cryptedInput = cryptedInput + "]"
+        # Input is base64-encoded to reduce size and prevent OOM errors when compiling Nim
         cryptedInput = f"let b64buf : noCryptString = \"{str(base64.b64encode(ciphertext[16:]), 'utf-8')}\""
 
+        # Define as bytearray to inject in Nim source code
         cryptIV = f"let cryptIV: array[{len(ciphertext[:16])}, byte] = [byte "
         cryptIV = cryptIV + ",".join ([f"{x:#0{4}x}" for x in ciphertext[:16]])
         cryptIV = cryptIV + "]"
@@ -100,7 +99,6 @@ def aesEncryptInputFile(inFilename):
 
 def parseArguments(inArgs):
     # Construct the packed arguments in the right format (array split on space)
-    # Example: var arr = toCLRVariant(["client", "10.10.10.10:8000"], VT_BSTR)
     if not inArgs:
         result = 'let arr = toCLRVariant([""], VT_BSTR)'
     elif inArgs == "PASSTHRU":
@@ -142,7 +140,7 @@ def generateSource_ExecuteAssembly(fileName, cryptedInput, cryptIV, cryptKey, ar
 
     return outFilename
 
-def generateSource_Shinject(fileName, cryptedInput, cryptIV, cryptKey, argString, disableAmsi, disableEtw, verbose):
+def generateSource_Shinject(fileName, cryptedInput, cryptIV, cryptKey, disableAmsi, disableEtw, verbose):
     # Construct the Nim source file based on the passed arguments, using the Execute-Assembly template 
     filenames = ["NimPackt-Template-Base.nim", "NimPackt-Template-Shinject.nim"]
     result = ""
@@ -234,7 +232,7 @@ if __name__ == "__main__":
             argString, args.patchAmsi, args.disableEtw, args.verbose)
     elif args.executionmode == "shinject":
         sourceFile = generateSource_Shinject(args.inputfile, cryptedInput, cryptIV, cryptKey,
-            argString, args.patchAmsi, args.disableEtw, args.verbose)
+            args.patchAmsi, args.disableEtw, args.verbose)
     else:
         raise SystemExit("ERROR: Argument 'executionmode' is not valid. Please specify either of 'execute-assembly', 'shinject', or 'shinject-remote'.")
 
