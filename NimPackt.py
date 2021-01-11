@@ -77,8 +77,7 @@ def aesEncryptInputFile(inFilename):
 
     print("Encrypting binary to embed...")
     with open(inFilename,'rb') as inFile:
-        blob_data = bytearray(inFile.read())
-        plaintext = blob_data
+        plaintext = inFile.read()
         key =  os.urandom(16) # AES-128, so 16 bytes
         ciphertext = encrypt_message(key, plaintext)
 
@@ -216,6 +215,9 @@ if __name__ == "__main__":
     optional.add_argument('-V', '--version', action='version', version='%(prog)s 0.8 Beta')
 
     args = parser.parse_args()
+
+    if args.x64 == False:
+        print("WARNING: Compiling in x86 mode may cause crashes. Compile generated .nim file manually in this case.")
 
     if args.executionmode in ["shinject-remote"]:
         raise SystemExit("ERROR: Sorry, remote shellcode injection is not supported yet. Coming Soon™️")
