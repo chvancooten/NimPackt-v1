@@ -8,6 +8,7 @@
 
 NimPackt is a Nim-based packer for C# / .NET executables and raw shellcode. It automatically wraps these executables (along with its arguments) in a Nim binary that is compiled to Native C and as such harder to detect or reverse engineer. Currently, it has the following features.
 
+- Unhooking User-mode APIs (`Ntdll`) using [ShellyCoat](https://github.com/slaeryan/AQUARMOURY/tree/master/Shellycoat)
 - Patching the Anti-Malware Scan Interface (AMSI)
 - Disabling Event Tracing for Windows (ETW)
 - Payload encryption (AES-128 CTR) to prevent static analysis
@@ -93,6 +94,6 @@ python3 NimPackt.py -r -E -i calc.bin -e shinject
 
 ## Wishlist
 
-- Provide option to deploy `Project5` to unhook API calls before execution
+- Provide option to evade sandbox fingerprinting by performing calculations for 10-30s
 - Provide option to pack as dll library
 - A CobaltStrike plugin 🤗

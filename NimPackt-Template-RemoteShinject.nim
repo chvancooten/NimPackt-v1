@@ -101,5 +101,8 @@
             echo "[*] tHandle: ", tHandle
             echo "[+] Injected"
 
-    # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: injectShellcodeRemote(decoded, "explorer.exe", true)
+    if verbose:
+        echo "[*] Executing shellcode in remote thread..."
+
+    # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: injectShellcodeRemote(decodedPay, "explorer.exe", true)
     #[ PLACEHOLDERINJECTCALL ]#

