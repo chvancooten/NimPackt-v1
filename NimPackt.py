@@ -30,6 +30,8 @@ import base64
 from Crypto.Cipher import AES
 from Crypto.Util import Counter
 
+scriptDir = os.path.dirname(__file__)
+
 ### Base64 deprecated for AES encryption
 # def base64EncodeInputFile(inFilename):
 #     ### Deprecated code WITHIN deprecated code, how about that?!
@@ -96,7 +98,7 @@ def cryptFiles(inFilename, unhookApis, x64):
 
     if unhookApis:
         if x64:
-            with open('dist/shellycoat_x64.bin','rb') as coatFile:
+            with open(os.path.join(scriptDir, 'dist/shellycoat_x64.bin'),'rb') as coatFile:
                 plaintext = coatFile.read()
                 cipherCoat = encrypt_message(key, iv, plaintext)
                 cryptedCoat = f"let cryptedCoat = \"{str(base64.b64encode(cipherCoat[16:]), 'utf-8')}\""
@@ -125,7 +127,7 @@ def generateSource_ExecuteAssembly(fileName, cryptedInput, cryptedCoat, cryptIV,
     filenames = ["NimPackt-Template-Base.nim", "NimPackt-Template-ExecuteAssembly.nim"]
     result = ""
     for fname in filenames:
-        with open(fname,'r') as templateFile:
+        with open(os.path.join(scriptDir, fname),'r') as templateFile:
             for line in templateFile:
                 new_line = line.rstrip()
                 new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
@@ -138,7 +140,7 @@ def generateSource_ExecuteAssembly(fileName, cryptedInput, cryptedCoat, cryptIV,
                 new_line = new_line.replace('#[ PLACEHOLDERARGUMENTS ]#', argString)
                 result += new_line +"\n"
 
-    outDir = "./output/"
+    outDir = os.path.join(scriptDir, "output/")
     outFilename = outDir + os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "ExecAssemblyNimPackt.nim"
 
     if not os.path.exists(outDir):
@@ -155,7 +157,7 @@ def generateSource_Shinject(fileName, cryptedInput, cryptedCoat, cryptIV, cryptK
     filenames = ["NimPackt-Template-Base.nim", "NimPackt-Template-Shinject.nim"]
     result = ""
     for fname in filenames:
-        with open(fname,'r') as templateFile:
+        with open(os.path.join(scriptDir, fname),'r') as templateFile:
             for line in templateFile:
                 new_line = line.rstrip()
                 new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
@@ -167,7 +169,7 @@ def generateSource_Shinject(fileName, cryptedInput, cryptedCoat, cryptIV, cryptK
                 new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
                 result += new_line +"\n"
 
-    outDir = "./output/"
+    outDir = os.path.join(scriptDir, "output/")
     outFilename = outDir + os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "ShinjectNimPackt.nim"
 
     if not os.path.exists(outDir):
@@ -184,7 +186,7 @@ def generateSource_RemoteShinject(fileName, cryptedInput, cryptedCoat, cryptIV, 
     filenames = ["NimPackt-Template-Base.nim", "NimPackt-Template-RemoteShinject.nim"]
     result = ""
     for fname in filenames:
-        with open(fname,'r') as templateFile:
+        with open(os.path.join(scriptDir, fname),'r') as templateFile:
             for line in templateFile:
                 new_line = line.rstrip()
                 new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
@@ -197,7 +199,7 @@ def generateSource_RemoteShinject(fileName, cryptedInput, cryptedCoat, cryptIV, 
                 new_line = new_line.replace('#[ PLACEHOLDERINJECTCALL ]#', f"injectShellcodeRemote(decodedPay, \"{injecttarget}\", {str(existingprocess).lower()})")
                 result += new_line +"\n"
 
-    outDir = "./output/"
+    outDir = os.path.join(scriptDir, "output/")
     outFilename = outDir + os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "RemoteShinjectNimPackt.nim"
 
     if not os.path.exists(outDir):
@@ -209,7 +211,7 @@ def generateSource_RemoteShinject(fileName, cryptedInput, cryptedCoat, cryptIV, 
 
     return outFilename
 
-def compileNim(fileName, hideApp, x64):
+def compileNimExe(fileName, hideApp, x64):
     # Compile the generated Nim file for Windows (cross-compile if run from linux)
     # Compilation flags are focused on stripping and optimizing the output binary for size
     if x64:
@@ -236,7 +238,9 @@ def compileNim(fileName, hideApp, x64):
         raise SystemExit(f"There was an error compiling the binary: {e}")
 
     os.remove(fileName)
-    print("Successfully compiled Nim binary! Go forth and make a Nimpackt that matters \N{smiling face with sunglasses}")
+    outFileName = os.path.splitext(fileName)[0] + ".exe"
+    print(f"Compiled Nim binary to {outFileName}!")
+    print("Go forth and make a Nimpackt that matters \N{smiling face with sunglasses}")
     
 
 if __name__ == "__main__":
@@ -256,10 +260,10 @@ if __name__ == "__main__":
     optional.add_argument('-32', '--32bit', action='store_false', default=True, dest='x64', help='Compile in 32-bit mode')
     optional.add_argument('-H', '--hideapp', action='store_true', default=False, dest='hideApp', help='Hide the app frontend (console output) by compiling it in GUI mode')
     optional.add_argument('-nu', '--nounhook', action='store_false', default=True, dest='unhookApis', help='Do NOT unhook user-mode API hooks')
-    optional.add_argument('-na', '--nopatchamsi', action='store_false', default=True, dest='patchAmsi', help='Do NOT patch (disable) the Anti-Malware Scan Interface (AMSI)')
-    optional.add_argument('-ne', '--nodisableetw', action='store_false', default=True, dest='disableEtw', help='Do NOT disable Event Tracing for Windows (ETW)')
+    optional.add_argument('-na', '--nopatchamsi', action='store_false', default=True, dest='patchAmsi', help='Do NOT patch (disable) the Anti-Malware Scan Interface (AMSI) (recommended for shellcode)')
+    optional.add_argument('-ne', '--nodisableetw', action='store_false', default=True, dest='disableEtw', help='Do NOT disable Event Tracing for Windows (ETW) (recommended for shellcode)')
     optional.add_argument('-v', '--verbose', action='store_true', default=False, dest='verbose', help='Print debug messages of the wrapped binary at runtime')
-    optional.add_argument('-V', '--version', action='version', version='%(prog)s 0.8 Beta')
+    optional.add_argument('-V', '--version', action='version', version='%(prog)s 0.9 Beta')
 
     args = parser.parse_args()
 
@@ -294,4 +298,4 @@ if __name__ == "__main__":
     else:
         raise SystemExit("ERROR: Argument 'executionmode' is not valid. Please specify either of 'execute-assembly', 'shinject', or 'shinject-remote'.")
 
-    compileNim(sourceFile, args.hideApp, args.x64)
+    compileNimExe(sourceFile, args.hideApp, args.x64)

