@@ -74,7 +74,7 @@ popup attacks {
                 drow_checkbox($dialog, "nu", "API Unhooking: ", "Do \UNOT\U unhook user-mode API calls (ntdll).");
                 drow_checkbox($dialog, "na", "AMSI Bypass: ", "Do \UNOT\U bypass AMSI (generally not required for shellcode).");
                 drow_checkbox($dialog, "ne", "ETW Disable: ", "Do \UNOT\U disable Event Tracing for Windows (generally not required for shellcode).");
-                drow_checkbox($dialog, "arch86", "Architecture: ", "Use x86 Payload");
+                drow_checkbox($dialog, "arch86", "Architecture: ", "Use x86 payload.");
                 dbutton_action($dialog, "Generate");
 
                 # show our dialog

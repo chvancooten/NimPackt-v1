@@ -77,7 +77,7 @@ other arguments:
 
 **Examples:**
 
-```
+```bash
 # Pack SharpKatz to accept commands at runtime, patching hooks, AMSI, and ETW while printing verbose messages on runtime
 python3 ./NimPackt.py -e execute-assembly -i bins/SharpKatz-x64.exe -v
 
@@ -106,3 +106,5 @@ Binaries are stored in the `output` subfolder of your installation directory.
 
 - Provide option to evade sandbox fingerprinting (e.g. by performing calculations for 10-30s)
 - Provide option to pack as dll library
+- Stabilize shellcode execution
+- Fix "hard parsing" of arguments passed as embedded arguments (e.g. `-a '-arg=value'` not being accepted by `argparse`)

