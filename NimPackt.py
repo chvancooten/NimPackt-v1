@@ -119,7 +119,7 @@ def parseArguments(inArgs):
         result = 'let arr = toCLRVariant(commandLineParams(), VT_BSTR)'
     else:
         parsedArgs = inArgs.split(" ")
-        parsedArgs = ', '.join('"{0}"'.format(w) for w in parsedArgs)
+        parsedArgs = ', '.join('"{0}"'.format(w.replace('\\', '\\\\')) for w in parsedArgs)
         result = f'let arr = toCLRVariant([{parsedArgs}], VT_BSTR)'
 
     return result
@@ -283,7 +283,7 @@ if __name__ == "__main__":
 
     required.add_argument('-e', '--executionmode', action='store', dest='executionmode', help='Execution mode of the packer. Supports "execute-assembly" or "shinject"', required=True)
     required.add_argument('-i', '--inputfile', action='store', dest='inputfile', help='C# .NET binary executable (.exe) or shellcode (.bin) to wrap', required=True)
-    assembly.add_argument('-a', '--arguments', action='store', dest='arguments', default="PASSTHRU", nargs="?", const="", help='Arguments to "bake into" the wrapped binary, or "PASSTHRU" to accept run-time arguments (default)')
+    assembly.add_argument('-a', '--arguments', action='store', dest='arguments', default="PASSTHRU", help='Arguments to "bake into" the wrapped binary, or "PASSTHRU" to accept run-time arguments (default)')
     injection.add_argument('-r', '--remote', action='store_false', dest='localinject', default=True, help='Inject shellcode into remote process (default false)')
     injection.add_argument('-t', '--target', action='store', dest='injecttarget', default="explorer.exe", help='Remote thread targeted for remote process injection (default "explorer.exe", implies -r)')
     injection.add_argument('-E', '--existing', action='store_true', dest='existingprocess', default=False, help='Remote inject into existing process rather than a newly spawned one (default false, implies -r) (WARNING: VOLATILE)')
