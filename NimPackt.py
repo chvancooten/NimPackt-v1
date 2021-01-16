@@ -242,7 +242,7 @@ def compileNim(fileName, fileType, hideApp, x64, debug):
         gui = "console"
 
     try:
-        compileCommand = f"nim c -d:danger -d:strip -d:release --hints:off --opt:size --passc=-flto --passl=-flto --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu}"
+        compileCommand = f"nim c -d:danger -d:strip -d:release --hints:off --warnings:off --opt:size --passc=-flto --passl=-flto --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu}"
         
         if fileType == "dll":
             compileCommand = compileCommand + " --app=lib --nomain"
