@@ -2,11 +2,6 @@
         NimPackt-Template-Shinject.nim starts here
     ]#
 
-    import osproc
-    import winim/lean
-    import winim/com
-    from bitops import bitor
-
     proc injectShellcodeRemote(shellcode: openArray[byte], tprocessName: string, injectExistingProcess: bool): void =
 
         var tProcessId : DWORD

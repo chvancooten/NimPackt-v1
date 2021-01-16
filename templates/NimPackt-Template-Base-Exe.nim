@@ -19,10 +19,14 @@
 
 import nimcrypto
 import winim/clr except `[]`
+import winim/lean
+import winim/com
 import strformat
 import os
 import dynlib
 import base64
+import osproc
+from bitops import bitor
 
 ### Modified code from Nim-Strenc to avoid XORing of long strings
 ### Original source: https://github.com/Yardanico/nim-strenc
