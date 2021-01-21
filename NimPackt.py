@@ -124,29 +124,20 @@ def parseArguments(inArgs):
 
     return result
         
-def generateSource_ExecuteAssembly(fileName, fileType, cryptedInput, cryptedCoat, cryptIV, cryptKey, argString, disableAmsi, disableEtw, verbose):
-    # Construct the Nim source file based on the passed arguments, using the Execute-Assembly template 
-    if fileType == "exe":
-        filenames = ["NimPackt-Template-Base-Exe.nim", "NimPackt-Template-ExecuteAssembly.nim"]
-    elif fileType == "dll":
-        filenames = ["NimPackt-Template-Base-Dll.nim", "NimPackt-Template-ExecuteAssembly.nim", "NimPackt-Template-Footer-Dll.nim"]
-    else:
-        raise SystemExit("ERROR: Argument 'filetype' is not valid. Please specify either of 'dll' or 'exe'.")
+def generateSource_ExecuteAssembly(fileName, cryptedInput, cryptedCoat, cryptIV, cryptKey, argString):
+    # Construct the Nim source file based on the passed arguments
+    filename = "NimPackt-Template.nim"
 
     result = ""
-    for fname in filenames:
-        with open(os.path.join(templateDir, fname),'r') as templateFile:
-            for line in templateFile:
-                new_line = line.rstrip()
-                new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
-                new_line = new_line.replace('#[ PLACEHOLDERVERBOSE ]#', f"let verbose = {str(verbose).lower()}")
-                new_line = new_line.replace('#[ PLACEHOLDERPATCHAMSI ]#', f"let optionPatchAmsi = {str(disableAmsi).lower()}")
-                new_line = new_line.replace('#[ PLACEHOLDERDISABLEETW ]#', f"let optionDisableEtw = {str(disableEtw).lower()}")
-                new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDINPUT ]#', cryptedInput)
-                new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#', cryptedCoat)
-                new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
-                new_line = new_line.replace('#[ PLACEHOLDERARGUMENTS ]#', argString)
-                result += new_line +"\n"
+    with open(os.path.join(templateDir, filename),'r') as templateFile:
+        for line in templateFile:
+            new_line = line.rstrip()
+            new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
+            new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDINPUT ]#', cryptedInput)
+            new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#', cryptedCoat)
+            new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
+            new_line = new_line.replace('#[ PLACEHOLDERARGUMENTS ]#', argString)
+            result += new_line +"\n"
 
     outFilename = os.path.join(outDir, os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "ExecAssemblyNimPackt.nim")
 
@@ -159,28 +150,19 @@ def generateSource_ExecuteAssembly(fileName, fileType, cryptedInput, cryptedCoat
 
     return outFilename
 
-def generateSource_Shinject(fileName, fileType, cryptedInput, cryptedCoat, cryptIV, cryptKey, disableAmsi, disableEtw, verbose):
-    # Construct the Nim source file based on the passed arguments, using the Execute-Assembly template 
-    if fileType == "exe":
-        filenames = ["NimPackt-Template-Base-Exe.nim", "NimPackt-Template-Shinject.nim"]
-    elif fileType == "dll":
-        filenames = ["NimPackt-Template-Base-Dll.nim", "NimPackt-Template-Shinject.nim", "NimPackt-Template-Footer-Dll.nim"]
-    else:
-        raise SystemExit("ERROR: Argument 'filetype' is not valid. Please specify either of 'dll' or 'exe'.")
+def generateSource_Shinject(fileName, cryptedInput, cryptedCoat, cryptIV, cryptKey):
+    # Construct the Nim source file based on the passed arguments
+    filename = "NimPackt-Template.nim"
 
     result = ""
-    for fname in filenames:
-        with open(os.path.join(templateDir, fname),'r') as templateFile:
-            for line in templateFile:
-                new_line = line.rstrip()
-                new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
-                new_line = new_line.replace('#[ PLACEHOLDERVERBOSE ]#', f"let verbose = {str(verbose).lower()}")
-                new_line = new_line.replace('#[ PLACEHOLDERPATCHAMSI ]#', f"let optionPatchAmsi = {str(disableAmsi).lower()}")
-                new_line = new_line.replace('#[ PLACEHOLDERDISABLEETW ]#', f"let optionDisableEtw = {str(disableEtw).lower()}")
-                new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDINPUT ]#', cryptedInput)
-                new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#', cryptedCoat)
-                new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
-                result += new_line +"\n"
+    with open(os.path.join(templateDir, filename),'r') as templateFile:
+        for line in templateFile:
+            new_line = line.rstrip()
+            new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
+            new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDINPUT ]#', cryptedInput)
+            new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#', cryptedCoat)
+            new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
+            result += new_line +"\n"
 
     outFilename = os.path.join(outDir, os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "ShinjectNimPackt.nim")
 
@@ -193,29 +175,20 @@ def generateSource_Shinject(fileName, fileType, cryptedInput, cryptedCoat, crypt
 
     return outFilename
 
-def generateSource_RemoteShinject(fileName, fileType, cryptedInput, cryptedCoat, cryptIV, cryptKey, disableAmsi, disableEtw, verbose, injecttarget, existingprocess):
-    # Construct the Nim source file based on the passed arguments, using the Execute-Assembly template 
-    if fileType == "exe":
-        filenames = ["NimPackt-Template-Base-Exe.nim", "NimPackt-Template-RemoteShinject.nim"]
-    elif fileType == "dll":
-        filenames = ["NimPackt-Template-Base-Dll.nim", "NimPackt-Template-RemoteShinject.nim", "NimPackt-Template-Footer-Dll.nim"]
-    else:
-        raise SystemExit("ERROR: Argument 'filetype' is not valid. Please specify either of 'dll' or 'exe'.")
+def generateSource_RemoteShinject(fileName, cryptedInput, cryptedCoat, cryptIV, cryptKey, injecttarget, existingprocess):
+    # Construct the Nim source file based on the passed arguments
+    filename = "NimPackt-Template.nim"
 
     result = ""
-    for fname in filenames:
-        with open(os.path.join(templateDir, fname),'r') as templateFile:
-            for line in templateFile:
-                new_line = line.rstrip()
-                new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
-                new_line = new_line.replace('#[ PLACEHOLDERVERBOSE ]#', f"let verbose = {str(verbose).lower()}")
-                new_line = new_line.replace('#[ PLACEHOLDERPATCHAMSI ]#', f"let optionPatchAmsi = {str(disableAmsi).lower()}")
-                new_line = new_line.replace('#[ PLACEHOLDERDISABLEETW ]#', f"let optionDisableEtw = {str(disableEtw).lower()}")
-                new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDINPUT ]#', cryptedInput)
-                new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#', cryptedCoat)
-                new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
-                new_line = new_line.replace('#[ PLACEHOLDERINJECTCALL ]#', f"injectShellcodeRemote(decodedPay, \"{injecttarget}\", {str(existingprocess).lower()})")
-                result += new_line +"\n"
+    with open(os.path.join(templateDir, filename),'r') as templateFile:
+        for line in templateFile:
+            new_line = line.rstrip()
+            new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
+            new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDINPUT ]#', cryptedInput)
+            new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#', cryptedCoat)
+            new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
+            new_line = new_line.replace('#[ PLACEHOLDERINJECTCALL ]#', f"injectShellcodeRemote(decodedPay, \"{injecttarget}\", {str(existingprocess).lower()})")
+            result += new_line +"\n"
 
     outFilename = os.path.join(outDir, os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "RemoteShinjectNimPackt.nim")
 
@@ -228,7 +201,7 @@ def generateSource_RemoteShinject(fileName, fileType, cryptedInput, cryptedCoat,
 
     return outFilename
 
-def compileNim(fileName, fileType, hideApp, x64, debug):
+def compileNim(fileName, fileType, executionMode, localInject, hideApp, unhookApis, disableAmsi, disableEtw, x64, verbose, debug):
     # Compile the generated Nim file for Windows (cross-compile if run from linux)
     # Compilation flags are focused on stripping and optimizing the output binary for size
     if x64:
@@ -243,11 +216,33 @@ def compileNim(fileName, fileType, hideApp, x64, debug):
 
     try:
         compileCommand = f"nim c -d:danger -d:strip -d:release --hints:off --warnings:off --opt:size --passc=-flto --passl=-flto --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu}"
+
+        if unhookApis:
+            compileCommand = compileCommand + " -d:patchApiCalls"
+
+        if disableAmsi:
+            compileCommand = compileCommand + " -d:patchAmsi"
+
+        if disableEtw:
+            compileCommand = compileCommand + " -d:disableEtw"
+
+        if verbose:
+            compileCommand = compileCommand + " -d:verbose"
+
+        if executionMode == "execute-assembly":
+            compileCommand = compileCommand + " -d:executeAssembly"
         
+        elif executionMode == "shinject" and localInject == True:
+            compileCommand = compileCommand + " -d:shinject"
+        
+        elif executionMode == "shinject" and localInject == False:
+            compileCommand = compileCommand + " -d:remoteShinject"
+
         if fileType == "dll":
-            compileCommand = compileCommand + " --app=lib --nomain"
+            compileCommand = compileCommand + " --app=lib --nomain -d=exportDll"
             outFileName = os.path.splitext(fileName)[0] + ".dll"
         else:
+            compileCommand = compileCommand + " -d=exportExe"
             outFileName = os.path.splitext(fileName)[0] + ".exe"
 
         if os.name == 'nt':
@@ -322,15 +317,16 @@ if __name__ == "__main__":
     argString = parseArguments(args.arguments)
 
     if args.executionmode == "execute-assembly":
-        sourceFile = generateSource_ExecuteAssembly(args.inputfile, args.filetype, cryptedInput, cryptedCoat,
-            cryptIV, cryptKey, argString, args.patchAmsi, args.disableEtw, args.verbose)
+        sourceFile = generateSource_ExecuteAssembly(args.inputfile, cryptedInput, cryptedCoat,
+            cryptIV, cryptKey, argString)
     elif args.executionmode == "shinject" and args.localinject == True:
-        sourceFile = generateSource_Shinject(args.inputfile, args.filetype, cryptedInput, cryptedCoat,
-             cryptIV, cryptKey, args.patchAmsi, args.disableEtw, args.verbose)
+        sourceFile = generateSource_Shinject(args.inputfile, cryptedInput, cryptedCoat,
+            cryptIV, cryptKey)
     elif args.executionmode == "shinject" and args.localinject == False:
-        sourceFile = generateSource_RemoteShinject(args.inputfile, args.filetype, cryptedInput, cryptedCoat,
-             cryptIV, cryptKey, args.patchAmsi, args.disableEtw, args.verbose, args.injecttarget, args.existingprocess)
+        sourceFile = generateSource_RemoteShinject(args.inputfile, cryptedInput, cryptedCoat,
+            cryptIV, cryptKey, args.injecttarget, args.existingprocess)
     else:
-        raise SystemExit("ERROR: Argument 'executionmode' is not valid. Please specify either of 'execute-assembly', 'shinject', or 'shinject-remote'.")
+        raise SystemExit("ERROR: Argument 'executionmode' is not valid. Please specify either 'execute-assembly' or 'shinject'.")
 
-    compileNim(sourceFile, args.filetype, args.hideApp, args.x64, args.debug)
+    compileNim(sourceFile, args.filetype, args.executionmode, args.localinject, args.hideApp, args.unhookApis,
+        args.patchAmsi, args.disableEtw, args.x64, args.verbose, args.debug)

@@ -11,7 +11,7 @@
 NimPackt is a Nim-based packer for C# / .NET executables and raw shellcode. It automatically wraps these executables (along with its arguments) in a Nim binary that is compiled to Native C and as such harder to detect and reverse engineer. Currently, it has the following features.
 
 - Compiles to `exe` or `dll` file
-- Various execution methods: `execute-assembly`, `shinject` (local thread), `remoteShinject` (existing or sacrificial process)
+- Two main execution methods: `execute-assembly` (takes a C# .exe) and `shinject` (takes a .bin with position-independent shellcode and executes it locally or in a remote process)
 - Unhooking User-mode APIs (`Ntdll`) using [ShellyCoat](https://github.com/slaeryan/AQUARMOURY/tree/master/Shellycoat)
 - Disabling Event Tracing for Windows (ETW) (recommended for 'execute-assembly' method)
 - Patching the Anti-Malware Scan Interface (AMSI) (recommended for 'execute-assembly' method)
