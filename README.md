@@ -49,7 +49,7 @@ To install the CobaltStrike plugin, select `Cobalt Strike` -> `Script Manager` f
 ## Usage
 
 ```
-usage: NimPackt.py [-h] -e EXECUTIONMODE -i INPUTFILE [-a [ARGUMENTS]] [-r] [-t INJECTTARGET] [-E] [-f FILETYPE] [-32] [-H] [-nu] [-na] [-ne] [-d] [-v] [-V]
+usage: NimPackt.py [-h] -e EXECUTIONMODE -i INPUTFILE [-a ARGUMENTS] [-r] [-t INJECTTARGET] [-E] [-f FILETYPE] [-s] [-32] [-H] [-nu] [-na] [-ne] [-d] [-v] [-V]
 
 required arguments:
   -e EXECUTIONMODE, --executionmode EXECUTIONMODE
@@ -58,7 +58,7 @@ required arguments:
                         C# .NET binary executable (.exe) or shellcode (.bin) to wrap
 
 execute-assembly arguments:
-  -a [ARGUMENTS], --arguments [ARGUMENTS]
+  -a ARGUMENTS, --arguments ARGUMENTS
                         Arguments to "bake into" the wrapped binary, or "PASSTHRU" to accept run-time arguments (default)
 
 shinject arguments:
@@ -70,6 +70,7 @@ shinject arguments:
 other arguments:
   -f FILETYPE, --filetype FILETYPE
                         Filetype to compile ("exe" or "dll", default: "exe")
+  -s, --sleep           Sleep for approx. 30 seconds by calculating primes
   -32, --32bit          Compile in 32-bit mode
   -H, --hideapp         Hide the app frontend (console output) of executable by compiling it in GUI mode
   -nu, --nounhook       Do NOT unhook user-mode API hooks

