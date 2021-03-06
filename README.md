@@ -117,7 +117,6 @@ rundll32 exampleShinjectNimPackt.dll,Update
 
 ## Wishlist
 
-- Provide option to evade sandbox fingerprinting (e.g. by performing calculations for 10-30s)
-- Stabilize shellcode execution
-- Fix "hard parsing" of arguments passed as embedded arguments (e.g. `-a '-arg=value'` not being accepted by `argparse`)
+- Stabilize shellcode execution (especially in remote threads)
 - Patch ETW by patching the actual function call (after Shellycoat) using [this method](https://gist.github.com/S3cur3Th1sSh1t/0f44b1a12c7eceb8f7be10799ba5018d)
+- Replace ShellyCoat with more targeted patching of used function calls to better ensure EDR evasion

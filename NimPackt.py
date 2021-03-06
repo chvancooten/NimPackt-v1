@@ -215,7 +215,7 @@ def compileNim(fileName, fileType, executionMode, localInject, hideApp, unhookAp
         gui = "console"
 
     try:
-        compileCommand = f"nim c -d:danger -d:strip -d:release --hints:off --warnings:off --opt:size --passc=-flto --passl=-flto --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu}"
+        compileCommand = f"nim c -d:danger -d:strip -d:release --hints:off --warnings:off --opt:size --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu}"
 
         if sleep:
             compileCommand = compileCommand + " -d:calcPrimes"
@@ -251,6 +251,7 @@ def compileNim(fileName, fileType, executionMode, localInject, hideApp, unhookAp
         if os.name == 'nt':
             # Windows
             print("Compiling Nim binary (this may take a while)...")
+            compileCommand = compileCommand + " --passc=-flto --passl=-flto"
         else:
             # Other (Unix)
             print("Cross-compiling Nim binary for Windows (this may take a while)...")
