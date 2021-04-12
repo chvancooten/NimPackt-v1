@@ -324,6 +324,9 @@ if __name__ == "__main__":
     if args.x64 == False and args.syscalls == True:
         raise SystemExit("ERROR: Using direct syscalls is not supported in x86. Change to x64 or disable syscalls with -ns.")
 
+    if args.x64 == False and args.unhookApis == True:
+        raise SystemExit("ERROR: Unhooking APIs is not supported in x86. Change to x64 or disable unhooking with -nu.")
+
     if args.executionmode == "shinject" and (args.injecttarget != "explorer.exe" or args.existingprocess == True):
         args.localinject = False
 
