@@ -301,7 +301,7 @@ if __name__ == "__main__":
     optional.add_argument('-H', '--hideapp', action='store_true', default=False, dest='hideApp', help='Hide the app frontend (console output) of executable by compiling it in GUI mode')
     optional.add_argument('-d', '--debug', action='store_true', default=False, dest='debug', help='Enable debug mode (retains .nim source file in output folder).')
     optional.add_argument('-v', '--verbose', action='store_true', default=False, dest='verbose', help='Print debug messages of the wrapped binary at runtime')
-    optional.add_argument('-V', '--version', action='version', version='%(prog)s 2.0 "EDR Evasion Boogaloo"')
+    optional.add_argument('-V', '--version', action='version', version='%(prog)s 2.1 "EDR Evasion Boogaloo"')
 
     args = parser.parse_args()
 

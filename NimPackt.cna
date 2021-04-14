@@ -42,6 +42,11 @@ sub compile {
                 push(@command, "-nu")
         }
 
+        # Add sleep
+        if (%options["sleep"] eq "true") {
+                push(@command, "-s")
+        }
+
         exec(@command);
 
         show_message("NimPackt initiated, compiling may take some time. Output will be saved to the 'output' folder in your NimPackt installation directory. To trigger dll payloads: 'rundll32 payload.dll,Update'.");
@@ -66,6 +71,7 @@ popup attacks {
                 drow_combobox($dialog, "filetype", "File type:", @("dll", "exe"));
                 drow_checkbox($dialog, "ns", "Direct Syscalls: ", "Do \UNOT\U use direct syscalls to run shellcode (compatible with Window generations 7-10).");
                 drow_checkbox($dialog, "nu", "API Unhooking: ", "Do \UNOT\U unhook user-mode API calls (ntdll) in target thread.");
+                drow_checkbox($dialog, "sleep", "Sandbox Evasion: ", "Perform calcluations for 30s-1m before executing.");
                 drow_checkbox($dialog, "arch86", "Architecture: ", "Use x86 payload.");
                 dbutton_action($dialog, "Generate");
 
