@@ -27,6 +27,7 @@ import argparse
 import binascii
 import os
 import base64
+from hashlib import sha1
 from Crypto.Cipher import AES
 from Crypto.Util import Counter
 
@@ -34,37 +35,16 @@ scriptDir = os.path.dirname(__file__)
 templateDir = os.path.join(scriptDir, "templates")
 outDir = os.path.join(scriptDir, "output")
 
-### Base64 deprecated for AES encryption
-# def base64EncodeInputFile(inFilename):
-#     ### Deprecated code WITHIN deprecated code, how about that?!
-#     # Construct the Nim bytearray in the right format
-#     # Example: var buf: array[8, byte] = [byte 0x4D,0x5A,0x90,0x00,0x03,0x00,0x00,0x00]
-#     # outFilename = inFilename + ".nimByteArray"
-
-#     # if os.path.exists(outFilename):
-#     #     print(f"File '{outFilename}' already exists, using bytearray from this file...")
-#     #     with open(outFilename,'r') as outFile:
-#     #         return outFile.read()
-
-#     if not os.path.exists(inFilename):
-#         raise SystemExit("ERROR: Input file is not valid.")
-
-#     print("Encoding binary to embed...")
-#     with open(inFilename,'rb') as inFile:
-#         blob_data = bytearray(inFile.read())
-
-#         ### DEPRECATED - Below code embeds the plaintext bytestring which can be fingerprinted
-#         #result = f"let buf: array[{len(blob_data)}, byte] = [byte "
-#         #result = result + ",".join ([f"{x:#0{4}x}" for x in blob_data])
-#         #result = result + "]"
-#         #
-#         #with open(outFilename, 'w') as outFile:
-#         #    outFile.write(result)
-#         #    print(f"Wrote Nim bytestring to '{outFilename}'.")
-
-#         result = f"let b64buf = \"{str(base64.b64encode(blob_data), 'utf-8')}\""
-
-#     return result
+def getSha1Sum(file):
+    BUF_SIZE = 65536
+    Sha1Sum = sha1()
+    with open(file, 'rb') as f:
+        while True:
+            data = f.read(BUF_SIZE)
+            if not data:
+                break
+            Sha1Sum.update(data)
+    return Sha1Sum.hexdigest()
 
 def int_of_string(s):
     return int(binascii.hexlify(s), 16)
@@ -272,6 +252,7 @@ def compileNim(fileName, fileType, executionMode, localInject, hideApp, unhookAp
         os.remove(fileName)
     
     print(f"Compiled Nim binary to {outFileName}!")
+    print(f"SHA1 hash of file to use as IOC: {getSha1Sum(outFileName)}")
     if fileType == "dll":
         print(f"Trigger dll by calling 'rundll32 {os.path.basename(outFileName)},Update'")
     print("Go forth and make a Nimpackt that matters \N{smiling face with sunglasses}")
