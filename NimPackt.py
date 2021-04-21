@@ -196,7 +196,7 @@ def compileNim(fileName, fileType, executionMode, localInject, hideApp, unhookAp
         gui = "console"
 
     try:
-        # Testing: Remove compile-time size optimization to evade some defender fingerprints
+        # Removed compile-time size optimization to evade some AV fingerprinting
         #compileCommand = f"nim c -d:danger -d:strip -d:release --hints:off --warnings:off --opt:size --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu}"
         compileCommand = f"nim c -d:strip -d:release --hints:off --warnings:off --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu}"
 
@@ -293,9 +293,6 @@ if __name__ == "__main__":
 
     if args.executionmode == "execute-assembly" and (args.localinject == False or args.injecttarget != "explorer.exe" or args.existingprocess == True):
         print("WARNING: Shinject arguments (-r, -t, -E) will be ignored in 'execute-assembly' mode.")
-
-    if args.filetype == "exe" and args.useSyscalls == True:
-        print("WARNING: ⚠ Syscalls may be fingerprinted by AV when using the 'exe' format. Use '-f dll' to compile to DLL instead, or use '-ns' to use regular API calls! ⚠")
 
     if args.executionmode == "shinject" and args.existingprocess == True:
         print("WARNING: ⚠ Injecting into existing processes is VERY volatile and is likely to CRASH the target process when exited. USE WITH CAUTION. ⚠")

@@ -122,7 +122,10 @@ VzJWdBdsTaqTGsey_SystemCall_Unknown:
 	ret
 VzJWdBdsTaqTGsey_Epilogue:
 	mov r10, rcx
-	syscall
+	nop
+    nop
+    syscall
+    nop
 	ret
     """
 
@@ -222,7 +225,10 @@ MSxlQNGtaQVDzcXz_SystemCall_Unknown:
 	ret
 MSxlQNGtaQVDzcXz_Epilogue:
 	mov r10, rcx
-	syscall
+	nop
+    nop
+    syscall
+    nop
 	ret
     """
 
@@ -322,7 +328,10 @@ FiuxrPXNssolHiEa_SystemCall_Unknown:
 	ret
 FiuxrPXNssolHiEa_Epilogue:
 	mov r10, rcx
-	syscall
+	nop
+    nop
+    syscall
+    nop
 	ret
     """
 
@@ -422,7 +431,10 @@ HOdIFVAdjQWNamsW_SystemCall_Unknown:
 	ret
 HOdIFVAdjQWNamsW_Epilogue:
 	mov r10, rcx
-	syscall
+	nop
+    nop
+    syscall
+    nop
 	ret
     """
 
@@ -522,7 +534,10 @@ CkzEIpXrlBNcxNyG_SystemCall_Unknown:
 	ret
 CkzEIpXrlBNcxNyG_Epilogue:
 	mov r10, rcx
-	syscall
+	nop
+    nop
+    syscall
+    nop
 	ret
     """
 
@@ -622,6 +637,9 @@ XnnlWrMywNrFZycU_SystemCall_Unknown:
 	ret
 XnnlWrMywNrFZycU_Epilogue:
 	mov r10, rcx
-	syscall
+	nop
+    nop
+    syscall
+    nop
 	ret
     """
