@@ -21,15 +21,19 @@
 ]#
 
 import nimcrypto
-import winim/clr except `[]`
 import winim/lean
-import winim/com
 import os
 import dynlib
 import base64
 import osproc
 import math
 from bitops import bitor
+
+when defined remoteShinject:
+    import winim/com
+
+when defined executeAssembly:
+    import winim/clr except `[]`
 
 when defined syscalls:
     include ../templates/syscalls
