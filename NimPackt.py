@@ -191,7 +191,7 @@ def generateSource_RemoteShinject(inFileName, outFileName, cryptedInput, crypted
 
     return outFileName
 
-def compileNim(fileName, fileType, executionMode, localInject, hideApp, unhookApis, useSyscalls, sleep, disableAmsi, disableEtw, x64, verbose, debug):
+def compileNim(fileName, fileType, executionMode, localInject, showConsole, unhookApis, useSyscalls, sleep, disableAmsi, disableEtw, x64, verbose, debug):
     # Compile the generated Nim file for Windows (cross-compile if run from linux)
     # Compilation flags are focused on stripping and optimizing the output binary for size
     if x64:
@@ -199,10 +199,10 @@ def compileNim(fileName, fileType, executionMode, localInject, hideApp, unhookAp
     else:
         cpu = "i386"
     
-    if hideApp:
-        gui = "gui"
-    else:
+    if showConsole:
         gui = "console"
+    else:
+        gui = "gui"
 
     try:
         # Removed compile-time size optimization to evade some AV fingerprinting
@@ -285,16 +285,16 @@ if __name__ == "__main__":
     injection.add_argument('-r', '--remote', action='store_false', dest='localinject', default=True, help='Inject shellcode into remote process (default false)')
     injection.add_argument('-t', '--target', action='store', dest='injecttarget', default="explorer.exe", help='Remote thread targeted for remote process injection (default "explorer.exe", implies -r)')
     injection.add_argument('-E', '--existing', action='store_true', dest='existingprocess', default=False, help='Remote inject into existing process rather than a newly spawned one (default false, implies -r) (WARNING: VOLATILE)')
-    optional.add_argument('-o', '--outfile', action='store', dest='outputfile', help='Filename of the output file (e.g. "LegitBinary"). Specify WITHOUT extension or path. This property will be stored in the output binary as the original filename.')
+    optional.add_argument('-o', '--outfile', action='store', dest='outputfile', help='Filename of the output file (e.g. "LegitBinary"). Specify WITHOUT extension or path. This property will be stored in the output binary as the original filename')
     optional.add_argument('-nu', '--nounhook', action='store_false', default=True, dest='unhookApis', help='Do NOT unhook user-mode API hooks in the target process by loading a fresh NTDLL.dll')
     optional.add_argument('-ns', '--nosyscalls', action='store_false', default=True, dest='useSyscalls', help='Do NOT use direct syscalls (Windows generation 7-10) instead of high-level APIs to evade EDR')
     optional.add_argument('-f', '--filetype', action='store', default="exe", dest='filetype', help='Filetype to compile ("exe" or "dll", default: "exe")')
     optional.add_argument('-s', '--sleep', action='store_true', default=False, dest='sleep', help='Sleep for approx. 30 seconds by calculating primes')
     optional.add_argument('-32', '--32bit', action='store_false', default=True, dest='x64', help='Compile in 32-bit mode (untested)')
-    optional.add_argument('-H', '--hideapp', action='store_true', default=False, dest='hideApp', help='Hide the app frontend (console output) of executable by compiling it in GUI mode')
-    optional.add_argument('-d', '--debug', action='store_true', default=False, dest='debug', help='Enable debug mode (retains .nim source file in output folder).')
+    optional.add_argument('-S', '--showConsole', action='store_true', default=False, dest='showConsole', help='Show a console window with the app\'s output when running')
+    optional.add_argument('-d', '--debug', action='store_true', default=False, dest='debug', help='Enable debug mode (retains .nim source file in output folder)')
     optional.add_argument('-v', '--verbose', action='store_true', default=False, dest='verbose', help='Print debug messages of the wrapped binary at runtime')
-    optional.add_argument('-V', '--version', action='version', version='%(prog)s 2.1 "EDR Evasion Boogaloo"')
+    optional.add_argument('-V', '--version', action='version', version='%(prog)s 2.2 "EDR Evasion Boogaloo"')
 
     args = parser.parse_args()
 
@@ -308,7 +308,10 @@ if __name__ == "__main__":
         print("WARNING: ⚠ Injecting into existing processes is VERY volatile and is likely to CRASH the target process when exited. USE WITH CAUTION. ⚠")
 
     if args.executionmode == "execute-assembly" and args.filetype == "dll":
-        print("WARNING: DLL files will not show console output. Make sure to pack your assembly with arguments to write to output file if you want the output :)")
+        print("WARNING: DLL files will not show console output. Make sure to pack your assembly with arguments to write to output file if you want the output.")
+
+    if args.executionmode == "execute-assembly" and args.showConsole == False:
+        print("WARNING: Assembly will be executed in GUI mode without a console! Recompile with the -S flag to show a console window with output on the target.")   
 
     if args.x64 == False:
         print("WARNING: Compiling in x86 mode may cause crashes. Compile generated .nim file manually in this case. Forcing debug mode...")
@@ -343,5 +346,5 @@ if __name__ == "__main__":
     else:
         raise SystemExit("ERROR: Argument 'executionmode' is not valid. Please specify either 'execute-assembly' or 'shinject'.")
 
-    compileNim(sourceFile, args.filetype, args.executionmode, args.localinject, args.hideApp, args.unhookApis,
+    compileNim(sourceFile, args.filetype, args.executionmode, args.localinject, args.showConsole, args.unhookApis,
         args.useSyscalls, args.sleep, args.patchAmsi, args.disableEtw, args.x64, args.verbose, args.debug)
