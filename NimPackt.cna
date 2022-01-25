@@ -69,7 +69,7 @@ popup attacks {
                 drow_combobox($dialog, "injectiontype", "Injection type:", @("local thread", "remote thread, sacrificial process", "remote thread, existing process"));
                 drow_text($dialog, "targetproc",  "Target process (remote injection only):");
                 drow_combobox($dialog, "filetype", "File type:", @("dll", "exe"));
-                drow_checkbox($dialog, "ns", "Direct Syscalls: ", "Do \UNOT\U use direct syscalls to run shellcode (compatible with Window generations 7-10).");
+                drow_checkbox($dialog, "ns", "Direct Syscalls: ", "Do \UNOT\U use direct syscalls to run shellcode.");
                 drow_checkbox($dialog, "nu", "API Unhooking: ", "Do \UNOT\U unhook user-mode API calls (ntdll) in target thread.");
                 drow_checkbox($dialog, "sleep", "Sandbox Evasion: ", "Perform calcluations for 30s-1m before executing.");
                 drow_checkbox($dialog, "arch86", "Architecture: ", "Use x86 payload.");
