@@ -16,7 +16,8 @@ rule HKTL_Nim_NimPackt : EXE FILE HKTL
 
     condition:
         uint16(0) == 0x5A4D and
-        (1 of ($nim*)) and
-        ($np1 or (2 of ($sus*))) and
-        filesize < 750KB
+        filesize < 750KB and
+        1 of ($nim*) and (
+            $np1 or 2 of ($sus*)
+        )
 }
