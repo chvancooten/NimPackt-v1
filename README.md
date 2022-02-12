@@ -46,6 +46,16 @@ nimble install winim nimcrypto
 pip3 install pycryptodome argparse
 ```
 
+### Docker
+
+The Docker image [chvancooten/nimbuild](https://hub.docker.com/r/chvancooten/nimbuild) can be used to compile NimPackt-v1 binaries. Using Docker is easy and avoids dependency issues, as all required dependencies are pre-installed in this container.
+
+To use it, install Docker for your OS and ensure the input shellcode is in the current folder. Then, start the compilation in a container as follows.
+
+```bash
+docker run --rm -v `pwd`:/usr/src/np -w /usr/src/np chvancooten/nimbuild python3 NimPackt.py -e shinject -i sc.bin
+```
+
 ### CobaltStrike Plugin 
 
 To install the CobaltStrike plugin, select `Cobalt Strike` -> `Script Manager` from the menu bar, and select `Load`. Make sure to load the `.cna` file from it's original location, otherwise it won't be able to find the NimPackt script files!
